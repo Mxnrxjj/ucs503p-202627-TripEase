@@ -1,0 +1,52 @@
+rules_version = '2';
+
+// TripEase Firestore security rules.
+//
+// With no server tier, these rules ARE the authorization layer. The default is
+// deny: any path not matched below is inaccessible. Every rule is exercised by
+// the emulator tests in `tests/rules/` and runs in CI, so an authorization
+// regression fails the build rather than reaching staging.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function ownsExistingTrip(tripId) {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/trips/$(tripId)).data.ownerId == request.auth.uid;
+    }
+
+    // A user's own profile document.
+    match /users/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Trips are private to their owner.
+    match /trips/{tripId} {
+      allow read: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+
+      // On create the caller must stamp themselves as the owner.
+      allow create: if isSignedIn()
+        && request.resource.data.ownerId == request.auth.uid;
+
+      // Ownership is immutable; only the owner may update or delete.
+      allow update: if isSignedIn()
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == resource.data.ownerId;
+
+      allow delete: if isSignedIn()
+        && resource.data.ownerId == request.auth.uid;
+
+      // Subcollections inherit the trip's ownership check.
+      match /itineraryItems/{itemId} {
+        allow read, write: if ownsExistingTrip(tripId);
+      }
+
+      match /expenses/{expenseId} {
+        allow read, write: if ownsExistingTrip(tripId);
+      }
+    }
+  }
+}

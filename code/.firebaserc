@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "default": "tripease-dev",
+    "staging": "tripease-staging"
+  }
+}
