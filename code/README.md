@@ -20,9 +20,12 @@ Tell TripEase where you want to go → it plans it → you explore it → edit i
   wall of text; expand any day to see its full schedule.
 - **Editable itinerary** — add, edit, delete and drag-to-reorder activities;
   change a city's hotel; all changes save immediately.
-- **Destination recommendations** — real, well-known attractions link to a
-  genuine reference (currently Wikipedia); anything without a verifiable
-  source is clearly labelled "Demo data" rather than presented as fact.
+- **Destination recommendations** — hotels, attractions, restaurants and
+  nightlife come from a swappable places provider (an offline curated/mock
+  dataset by default, or live Google Places when configured — see "Places
+  data provider" below). Real places link to a genuine reference; anything
+  without a verifiable source is clearly labelled "Demo data" rather than
+  presented as fact.
 - **Map view** — a visual (currently mocked) route between cities and stops,
   architected so a real Maps/Places provider can be swapped in later.
 - **Firebase Authentication** — email/password and Google sign-in.
@@ -70,7 +73,50 @@ npm run dev                  # http://localhost:3000
 ### Environment variables
 
 See `.env.example`. Only the six `NEXT_PUBLIC_FIREBASE_*` values are required.
-Trip generation needs no API key — see "Mock mode" below.
+Trip generation needs no API key by default — see "Places data provider" below.
+
+## Places data provider
+
+`src/lib/services/places/` is a small provider abstraction with one
+interface (`PlacesProvider.searchPlaces`) and two implementations:
+
+- **`mock-provider.ts`** (default, no setup required) — offline, curated
+  content for Thailand (Bangkok + Phuket) plus a generic fallback for any
+  other destination. This is what the app runs on out of the box.
+- **`google-provider.ts`** — live results from the Places API (New)
+  `searchText` endpoint.
+
+`getPlacesProvider()` (`src/lib/services/places/index.ts`) picks between
+them based on environment variables and always falls back to mock data if
+anything is missing or fails, so **the app never requires an API key to
+work**.
+
+### Using live Google Places data (optional)
+
+1. In the [Google Cloud console](https://console.cloud.google.com/), enable
+   the **Places API (New)** on a project and create an API key. Restrict the
+   key to the Places API and, ideally, to your server's IP/referrer.
+2. Add to `.env.local` (**not** `.env.example` — never commit a real key):
+   ```
+   PLACES_PROVIDER=google
+   GOOGLE_PLACES_API_KEY=your-key-here
+   ```
+3. Restart the dev server. Newly generated trips will now pull real hotels,
+   attractions, restaurants and nightlife for the destination.
+
+**This key is server-only.** It's read from `process.env` (no
+`NEXT_PUBLIC_` prefix) only inside `getPlacesProvider()`, which is only
+ever called from server code — the `/api/trips/generate` route and the
+`/api/places/photo` image proxy. It is never sent to, or readable from, the
+browser. Photos are streamed through `/api/places/photo` for the same
+reason: a raw Google photo URL needs the key attached as a query
+parameter, so the app fetches it server-side and relays the image bytes
+instead of ever putting that URL in front of a client.
+
+If a live search comes back empty for a city (quota, network issue, sparse
+data), the generator transparently fills that one gap from the mock
+provider rather than failing the whole trip — every place still carries its
+own source, so a hybrid itinerary is never misrepresented as fully verified.
 
 ## Scripts
 
@@ -98,26 +144,35 @@ Merges to `master` deploy to a staging environment on **Vercel**.
 
 ## Mock mode: what's real, what's demo
 
-There is currently no AI provider or Maps/Places API key configured, by
-design — the whole app works offline aside from Firebase:
+By default there's no AI provider or Places API key configured — the whole
+app works offline aside from Firebase:
 
-- **Itinerary generation** (`src/lib/services/itinerary-generator.ts`) is a
-  deterministic mock planner. Thailand (Bangkok + Phuket) is curated with
-  real, well-known attractions; any other destination falls back to a
-  generic template. The function signature and output shape are exactly what
-  a real LLM-backed planner would need to produce, so swapping in a live AI
+- **Itinerary generation** (`src/lib/services/itinerary-generator.ts`) is
+  deterministic: it decides which cities to visit and how many days each
+  gets, then asks the active **places provider** (see above) for that
+  city's hotel, attractions, restaurants and nightlife. With the mock
+  provider, Thailand (Bangkok + Phuket) is curated with real, well-known
+  attractions; any other destination falls back to a generic template. The
+  generator's function signature and output shape are exactly what a real
+  LLM-backed planner would need to produce, so swapping in a live AI
   provider later touches only that one file.
-- **Reference links**: real Wikipedia links are used for landmarks the
-  generator is confident actually exist (Grand Palace, Wat Pho, Phi Phi
-  Islands, etc). Hotels, restaurants and anything else without a verifiable
-  source carry no link and are tagged **"Demo data"** in the UI — the app
-  never invents a URL or presents a fabricated price as real.
+- **Every place carries its own provenance** (`Activity.source` /
+  `Hotel.source`, see `src/types/place.ts`): `isDemoData` says whether the
+  place itself is real, `priceIsEstimate` says whether its cost is a
+  verified number or an inferred guess (true for essentially everything
+  today — Google Places only ever returns a coarse price *level*, never an
+  exact amount). Real, well-known landmarks link to a genuine reference
+  (Wikipedia in mock mode, a Google Maps/website link in Google mode);
+  anything without a verifiable source carries no link and is tagged
+  **"Demo data"** in the UI. Nothing is ever presented as a verified fact
+  it isn't.
 - **Map view** (`src/components/maps/mock-map.tsx`) draws a CSS-based route
   between cities and stops. It's marked "Demo map" in the UI and is
-  structured so a real Google Maps/Places integration can replace its
+  structured so a real Google Maps/Directions integration can replace its
   internals without changing the roadmap page around it.
-- **Budget numbers** are computed from the mock content (see
-  `src/lib/services/budget-engine.ts`) — realistic in shape, not live prices.
+- **Budget numbers** are computed from whatever the places provider
+  returned (see `src/lib/services/budget-engine.ts`) — realistic in shape,
+  not live/bookable prices, even when the underlying places are real.
 
 ## Project layout
 
@@ -130,6 +185,7 @@ src/
       trips/new/                the multi-step create-trip wizard
       trips/[tripId]/           the roadmap / budget / map trip view
     api/trips/generate/         itinerary generation endpoint
+    api/places/photo/           server-side proxy for Google Places photos (keeps the API key off the client)
     page.tsx                    landing page
   components/
     landing/                   hero, how-it-works, itinerary + budget previews, features, CTA
@@ -145,15 +201,22 @@ src/
     collections.ts               Firestore collection paths
     date.ts, utils.ts            date + formatting helpers
     draft-storage.ts             carries a trip idea from the landing page through sign-up
-    mock-data/                  curated + generic destination content, mock FX rates
+    mock-data/                  curated destination content + city list, mock FX rates
     services/
       auth.ts                    the ONLY place Firebase Auth is touched (unchanged)
       trips.ts                   the ONLY place Firestore trip docs are touched
       trip-mutations.ts          pure add/edit/delete/reorder/hotel-change logic
-      itinerary-generator.ts     the mock "AI" — destination + dates + budget → full itinerary
+      itinerary-generator.ts     destination + dates + budget → full itinerary, via the places provider
       budget-engine.ts           itinerary → budget breakdown, over-budget savings suggestions
-    validation/trip.ts           Zod schemas for trip input and generated itineraries
-  types/                        trip.ts, itinerary.ts, budget.ts
+      places/
+        provider.ts               the PlacesProvider interface every provider implements
+        mock-provider.ts          offline provider backed by lib/mock-data
+        google-provider.ts        live provider backed by the Places API (New)
+        index.ts                  getPlacesProvider() — picks a provider from env vars
+    validation/
+      trip.ts                     Zod schemas for trip input and generated itineraries
+      places.ts                   Zod schemas for the Place model + raw Google API responses
+  types/                        trip.ts, itinerary.ts, budget.ts, place.ts
 firestore.rules                 authorization layer, tested by tests/rules/
 ```
 
@@ -164,11 +227,20 @@ at the scale of a handful of cities and a few dozen activities this stays
 well under Firestore's document size limit and keeps every edit a single
 read-modify-write instead of a fan-out across subcollections.
 
-## Known limitations (V1)
+## Known limitations
 
 - Cities can't be added or removed from a generated trip yet (hotel, day
   schedule and activities within existing cities are fully editable).
+- Which cities a trip visits (and how many days each gets) is still a
+  small static/curated decision in `itinerary-generator.ts`, not something
+  the places provider decides — only the recommendations *within* a city
+  (hotel/attractions/restaurants/nightlife) are provider-driven.
 - The map is a stylized mock, not a real Google Maps embed.
 - Costs are treated as a flat total for the travelling party rather than
   computed per-traveller (except flights, which scale by traveller count).
-- There's no real AI or live pricing/availability data — see "Mock mode" above.
+- There's no real AI itinerary generation (an LLM deciding the plan) — see
+  "Mock mode" above.
+- `google-provider.ts` is implemented against the documented Places API
+  (New) `searchText` shape but has not been exercised against a live API
+  key in this environment; the mock provider is what every automated test
+  and manual QA pass in this repo actually runs against.

@@ -5,13 +5,14 @@ import { generatedItinerarySchema, tripDraftInputSchema } from "@/lib/validation
 /**
  * POST /api/trips/generate
  *
- * Create Trip Form -> this route -> itinerary generator -> (AI provider, when
- * configured) -> structured JSON -> Zod validation -> response.
+ * Create Trip Form -> this route -> itinerary generator -> places provider
+ * (mock, or Google Places when configured) -> structured JSON -> Zod
+ * validation -> response.
  *
- * There's no AI provider wired up yet, so this always calls the deterministic
- * mock planner (see `lib/services/itinerary-generator.ts`). The env var below
- * exists so a real provider can be dropped in behind it later without any
- * caller (this route, the wizard) having to change.
+ * This route runs server-side only, which is why it — and not the client —
+ * is where `lib/services/places` resolves a provider: a live provider's API
+ * key (`GOOGLE_PLACES_API_KEY`) is read from `process.env` here and never
+ * sent to the browser. See `lib/services/places/index.ts`.
  */
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const itinerary = generateItinerary(parsedInput.data);
+    const itinerary = await generateItinerary(parsedInput.data);
     const parsedOutput = generatedItinerarySchema.safeParse(itinerary);
     if (!parsedOutput.success) {
       console.error("Generated itinerary failed validation", parsedOutput.error);

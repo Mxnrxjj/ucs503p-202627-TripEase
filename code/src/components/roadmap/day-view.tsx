@@ -109,7 +109,27 @@ export function DayView({
             estimatedCost: editing.estimatedCost,
             referenceUrl: editing.referenceUrl,
           }}
-          onSave={(value) => onEditActivity(editing.id, { ...value, referenceUrl: value.referenceUrl?.trim() || null })}
+          onSave={(value) => {
+            const nameChanged = value.name.trim() !== editing.name;
+            const newReferenceUrl = value.referenceUrl?.trim() || null;
+            // If the reference URL wasn't itself touched, it's just stale
+            // form state left over from before the rename, not something the
+            // traveller vouched for under the new name — drop it. If they
+            // changed (or cleared) it themselves, that's their call, so keep it.
+            const referenceUrlUntouched = newReferenceUrl === editing.referenceUrl;
+            onEditActivity(editing.id, {
+              ...value,
+              referenceUrl: nameChanged && referenceUrlUntouched ? null : newReferenceUrl,
+              // A renamed activity is no longer the real place the trip was
+              // generated with, so its other provenance no longer applies —
+              // just adjusting the cost/time/etc. of the same place keeps it,
+              // and means the traveller has now given an exact price, not a guess.
+              ...(nameChanged
+                ? { isDemoData: true, rating: null, imageUrl: null, source: null, location: null }
+                : {}),
+              priceIsEstimate: false,
+            });
+          }}
         />
       ) : null}
 

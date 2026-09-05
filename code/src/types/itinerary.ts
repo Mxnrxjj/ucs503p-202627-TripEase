@@ -1,3 +1,5 @@
+import type { LatLng, Rating, SourceRef } from "./place";
+
 export type ActivityCategory =
   | "sightseeing"
   | "food"
@@ -32,6 +34,18 @@ export interface Activity {
   currency: string;
   referenceUrl: string | null;
   isDemoData: boolean;
+  /**
+   * Provenance and richer place data, populated when this activity came
+   * from `lib/services/places` (Iteration 2+). All optional and additive —
+   * older trips and manually-added activities simply omit them. See
+   * `@/types/place` for what each field means.
+   */
+  location?: LatLng | null;
+  rating?: Rating | null;
+  imageUrl?: string | null;
+  source?: SourceRef | null;
+  /** True when `estimatedCost` is an inferred guess rather than a verified price. Defaults to true when absent. */
+  priceIsEstimate?: boolean;
 }
 
 export interface Hotel {
@@ -41,6 +55,11 @@ export interface Hotel {
   nights: number;
   referenceUrl: string | null;
   isDemoData: boolean;
+  location?: LatLng | null;
+  rating?: Rating | null;
+  imageUrl?: string | null;
+  source?: SourceRef | null;
+  priceIsEstimate?: boolean;
 }
 
 export interface TripDay {

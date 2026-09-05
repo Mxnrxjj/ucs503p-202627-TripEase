@@ -1,24 +1,44 @@
 import { addDaysIso } from "@/lib/utils";
-import {
-  findDestinationTemplate,
-  GENERIC_ACTIVITY_BANK,
-  type ActivityTemplate,
-  type CityTemplate,
-} from "@/lib/mock-data/destinations";
+import { findDestinationTemplate } from "@/lib/mock-data/destinations";
 import { fromInr } from "@/lib/mock-data/fx";
+import { getPlacesProvider } from "@/lib/services/places";
+import { MockPlacesProvider } from "@/lib/services/places/mock-provider";
+import type { PlaceSearchParams, PlacesProvider } from "@/lib/services/places/provider";
 import { computeBudgetBreakdown } from "@/lib/services/budget-engine";
 import type { Activity, City, Hotel, TripDay } from "@/types/itinerary";
+import type { Place } from "@/types/place";
 import type { GeneratedItinerary, TripDraftInput } from "@/types/trip";
 
 /**
  * The itinerary "AI". This is the one place trip content gets generated —
- * components never build itineraries themselves. Today it's a deterministic
- * mock planner (`USE_MOCK_TRIP_DATA`/no AI key), but the shape it returns
- * (`GeneratedItinerary`, validated by `@/lib/validation/trip`) is exactly
- * what a real LLM-backed planner would need to produce, so swapping the
- * body of `generateItinerary` for a real AI call later doesn't touch any
- * caller.
+ * components never build itineraries themselves, and never call a places
+ * provider directly. As of Iteration 2, every hotel/attraction/restaurant/
+ * nightlife recommendation is fetched through `PlacesProvider.searchPlaces`
+ * (see `lib/services/places`) rather than read out of hardcoded Thailand
+ * data — swapping the mock provider for a live one (Google Places today,
+ * anything else later) changes recommendation quality but touches nothing
+ * in this file's callers. The shape returned here (`GeneratedItinerary`,
+ * validated by `@/lib/validation/trip`) is also exactly what a real
+ * LLM-backed planner would need to produce, so a future AI-generated
+ * itinerary (as opposed to an AI-assisted places search) fits the same seam.
  */
+
+const MOCK_FALLBACK = new MockPlacesProvider();
+
+/**
+ * A live provider can legitimately come back empty (no hotels indexed for
+ * a tiny town, a quota error, a network blip). Rather than let a gap in
+ * one provider call break the whole trip, fall back to the mock provider
+ * for that one search — mock content always has *something* for any
+ * destination. Every place still carries its own `source`/`isDemoData`, so
+ * a hybrid itinerary (mostly-real with a mock-filled gap) is never
+ * misrepresented as fully verified.
+ */
+async function searchWithFallback(provider: PlacesProvider, params: PlaceSearchParams): Promise<Place[]> {
+  const results = await provider.searchPlaces(params);
+  if (results.length > 0 || provider.name === "mock") return results;
+  return MOCK_FALLBACK.searchPlaces(params);
+}
 
 function makeId(prefix: string): string {
   const rand =
@@ -56,68 +76,108 @@ function pickRotating<T>(pool: T[], index: number): T {
   return pool[index % pool.length];
 }
 
-function rankByPreferenceMatch(pool: ActivityTemplate[], preferences: string[]): ActivityTemplate[] {
-  return [...pool].sort((a, b) => {
-    const aScore = a.styles.filter((s) => preferences.includes(s)).length;
-    const bScore = b.styles.filter((s) => preferences.includes(s)).length;
+/** Turn a `Place` into an itinerary `Activity`. Duration falls back to a sane default
+ *  when a provider (Google Places) doesn't supply one. */
+function placeToActivity(place: Place, time: string, fallbackDurationMinutes = 90): Activity {
+  return {
+    id: makeId("act"),
+    name: place.name,
+    category: place.category,
+    time,
+    durationMinutes: place.durationMinutes ?? fallbackDurationMinutes,
+    description: place.description,
+    estimatedCost: place.price?.amount ?? 0,
+    currency: place.price?.currency ?? "INR",
+    referenceUrl: place.source.sourceUrl,
+    isDemoData: place.isDemoData,
+    location: place.location,
+    rating: place.rating,
+    imageUrl: place.imageUrl,
+    source: place.source,
+    priceIsEstimate: place.price?.isEstimate ?? true,
+  };
+}
+
+function placeToHotel(place: Place | null, cityName: string, nights: number, currency: string): Hotel {
+  if (!place) {
+    // No provider returned anything at all (shouldn't happen — the mock
+    // fallback always has content — but a Hotel needs a definite price).
+    return {
+      name: `${cityName} hotel (demo)`,
+      pricePerNight: fromInr(3_500, currency),
+      currency,
+      nights,
+      referenceUrl: null,
+      isDemoData: true,
+      priceIsEstimate: true,
+    };
+  }
+  return {
+    name: place.name,
+    pricePerNight: place.price?.amount ?? fromInr(3_500, currency),
+    currency,
+    nights,
+    referenceUrl: place.source.sourceUrl,
+    isDemoData: place.isDemoData,
+    location: place.location,
+    rating: place.rating,
+    imageUrl: place.imageUrl,
+    source: place.source,
+    priceIsEstimate: place.price?.isEstimate ?? true,
+  };
+}
+
+function rankByPreference(places: Place[], preferences: string[]): Place[] {
+  return [...places].sort((a, b) => {
+    const aScore = a.styleTags.filter((s) => preferences.includes(s)).length;
+    const bScore = b.styleTags.filter((s) => preferences.includes(s)).length;
     return bScore - aScore;
   });
 }
 
-function toActivity(template: ActivityTemplate, time: string, currency: string): Activity {
-  return {
-    id: makeId("act"),
-    name: template.name,
-    category: template.category,
-    time,
-    durationMinutes: template.durationMinutes,
-    description: template.description,
-    estimatedCost: fromInr(template.estimatedCost, currency),
-    currency,
-    referenceUrl: template.referenceUrl,
-    isDemoData: template.isDemoData,
-  };
+interface CityPlaces {
+  hotel: Place | null;
+  attractions: Place[];
+  lunch: Place[];
+  dinner: Place[];
+  breakfast: Place[];
+  nightlife: Place[];
 }
 
-function buildCityFromTemplate(
-  template: CityTemplate,
-  order: number,
-  startDate: string,
-  dayCount: number,
-  isLastCity: boolean,
+async function fetchCityPlaces(
+  provider: PlacesProvider,
+  cityName: string,
+  country: string,
+  preferences: TripDraftInput["preferences"],
   currency: string,
-): City {
-  const nights = Math.max(1, isLastCity ? dayCount - 1 : dayCount);
-  const hotel: Hotel = {
-    name: template.hotel.name,
-    pricePerNight: fromInr(template.hotel.pricePerNight, currency),
-    currency,
-    nights,
-    referenceUrl: null,
-    isDemoData: true,
-  };
+): Promise<CityPlaces> {
+  const base = { destination: cityName, country, currency } satisfies Partial<PlaceSearchParams>;
+
+  const [hotels, attractions, breakfast, lunch, dinner, nightlife] = await Promise.all([
+    searchWithFallback(provider, { ...base, type: "hotel", limit: 1 }),
+    searchWithFallback(provider, { ...base, type: "attraction", preferences, limit: 14 }),
+    searchWithFallback(provider, { ...base, type: "restaurant", mealType: "breakfast", limit: 3 }),
+    searchWithFallback(provider, { ...base, type: "restaurant", mealType: "lunch", limit: 6 }),
+    searchWithFallback(provider, { ...base, type: "restaurant", mealType: "dinner", limit: 6 }),
+    searchWithFallback(provider, { ...base, type: "nightlife", limit: 4 }),
+  ]);
+
   return {
-    id: makeId("city"),
-    name: template.name,
-    country: template.country,
-    order,
-    startDate,
-    endDate: addDaysIso(startDate, dayCount - 1),
-    dayCount,
-    hotel,
-    imageQuery: template.imageQuery,
+    hotel: hotels[0] ?? null,
+    attractions: rankByPreference(attractions, preferences),
+    breakfast,
+    lunch,
+    dinner,
+    nightlife,
   };
 }
 
 function buildDaysForCity(
   city: City,
-  template: CityTemplate,
+  places: CityPlaces,
   dayNumberOffset: number,
-  preferences: string[],
-  currency: string,
   isFirstCity: boolean,
 ): TripDay[] {
-  const rankedAttractions = rankByPreferenceMatch(template.attractions, preferences);
   const days: TripDay[] = [];
 
   for (let i = 0; i < city.dayCount; i++) {
@@ -125,30 +185,39 @@ function buildDaysForCity(
     const activities: Activity[] = [];
 
     if (i === 0 && !isFirstCity) {
-      activities.push(
-        toActivity(
-          {
-            name: `Travel to ${city.name}`,
-            category: "transport",
-            description: `Transfer from the previous city to ${city.name}.`,
-            estimatedCost: 6_000,
-            durationMinutes: 180,
-            referenceUrl: null,
-            isDemoData: true,
-            styles: [],
-          },
-          "07:30",
-          currency,
-        ),
-      );
+      activities.push({
+        id: makeId("act"),
+        name: `Travel to ${city.name}`,
+        category: "transport",
+        time: "07:30",
+        durationMinutes: 180,
+        description: `Transfer from the previous city to ${city.name}.`,
+        estimatedCost: fromInr(6_000, city.hotel.currency),
+        currency: city.hotel.currency,
+        referenceUrl: null,
+        isDemoData: true,
+        priceIsEstimate: true,
+      });
     }
 
-    activities.push(toActivity(template.breakfast, "09:00", currency));
-    activities.push(toActivity(pickRotating(rankedAttractions, i * 2), "10:00", currency));
-    activities.push(toActivity(pickRotating(template.lunch, i), "12:30", currency));
-    activities.push(toActivity(pickRotating(rankedAttractions, i * 2 + 1), "14:00", currency));
-    activities.push(toActivity(pickRotating(template.eveningSpots, i), "18:00", currency));
-    activities.push(toActivity(pickRotating(template.dinner, i), "20:00", currency));
+    if (places.breakfast.length > 0) {
+      activities.push(placeToActivity(pickRotating(places.breakfast, i), "09:00", 45));
+    }
+    if (places.attractions.length > 0) {
+      activities.push(placeToActivity(pickRotating(places.attractions, i * 2), "10:00"));
+    }
+    if (places.lunch.length > 0) {
+      activities.push(placeToActivity(pickRotating(places.lunch, i), "12:30", 60));
+    }
+    if (places.attractions.length > 0) {
+      activities.push(placeToActivity(pickRotating(places.attractions, i * 2 + 1), "14:00"));
+    }
+    if (places.nightlife.length > 0) {
+      activities.push(placeToActivity(pickRotating(places.nightlife, i), "18:00"));
+    }
+    if (places.dinner.length > 0) {
+      activities.push(placeToActivity(pickRotating(places.dinner, i), "20:00", 90));
+    }
 
     days.push({
       id: makeId("day"),
@@ -162,95 +231,50 @@ function buildDaysForCity(
   return days;
 }
 
-function buildGenericTemplate(destination: string): CityTemplate {
-  return {
-    name: destination,
-    country: destination,
-    imageQuery: `${destination} travel landmark`,
-    shareOfTrip: 1,
-    hotel: { name: `${destination} Central Hotel (demo)`, pricePerNight: 3_500 },
-    breakfast: {
-      name: "Breakfast at the hotel",
-      category: "food",
-      description: "Breakfast before heading out for the day.",
-      estimatedCost: 400,
-      durationMinutes: 45,
-      referenceUrl: null,
-      isDemoData: true,
-      styles: [],
-    },
-    lunch: [
-      {
-        name: "Local lunch",
-        category: "food",
-        description: "Lunch at a well-reviewed local restaurant.",
-        estimatedCost: 700,
-        durationMinutes: 60,
-        referenceUrl: null,
-        isDemoData: true,
-        styles: [],
-      },
-    ],
-    dinner: [
-      {
-        name: "Dinner in the city centre",
-        category: "food",
-        description: "Dinner at a popular local restaurant.",
-        estimatedCost: 900,
-        durationMinutes: 90,
-        referenceUrl: null,
-        isDemoData: true,
-        styles: [],
-      },
-    ],
-    attractions: [],
-    eveningSpots: [
-      {
-        name: "Evening stroll in the city centre",
-        category: "sightseeing",
-        description: "A relaxed evening walk through the main square or promenade.",
-        estimatedCost: 0,
-        durationMinutes: 90,
-        referenceUrl: null,
-        isDemoData: true,
-        styles: [],
-      },
-    ],
-  };
+interface CityPlan {
+  name: string;
+  country: string;
+  shareOfTrip: number;
+  imageQuery: string;
 }
 
-export function generateItinerary(input: TripDraftInput): GeneratedItinerary {
+/** Which cities to visit — a lightweight, still-static breakdown. Iteration 2 replaces
+ *  hardcoded PLACE content with the places service; picking the cities themselves
+ *  (a geocoding/region-breakdown concern) is intentionally out of scope for it. */
+function planCities(destination: string, dayCount: number): CityPlan[] {
+  const template = findDestinationTemplate(destination);
+  if (template) {
+    return template.cities.map((c) => ({
+      name: c.name,
+      country: c.country,
+      shareOfTrip: c.shareOfTrip,
+      imageQuery: c.imageQuery,
+    }));
+  }
+  if (dayCount >= 5) {
+    return [
+      { name: `${destination} City`, country: destination, shareOfTrip: 0.55, imageQuery: `${destination} city` },
+      { name: `${destination} Coast`, country: destination, shareOfTrip: 0.45, imageQuery: `${destination} coast` },
+    ];
+  }
+  return [{ name: destination, country: destination, shareOfTrip: 1, imageQuery: `${destination} travel landmark` }];
+}
+
+function flightTierPerTraveler(destination: string): number {
+  return findDestinationTemplate(destination)?.flightTierPerTraveler ?? 25_000;
+}
+
+export async function generateItinerary(input: TripDraftInput): Promise<GeneratedItinerary> {
   const dayCount = Math.max(
     1,
     Math.round((new Date(input.endDate).getTime() - new Date(input.startDate).getTime()) / 86_400_000) + 1,
   );
 
-  const template = findDestinationTemplate(input.destination);
-  const cityTemplates: CityTemplate[] = template
-    ? template.cities
-    : [buildGenericTemplate(input.destination)];
-
-  // For a generic destination on a longer trip, split into two demo "zones"
-  // so the roadmap still demonstrates a multi-city trip.
-  const effectiveTemplates =
-    !template && dayCount >= 5
-      ? [
-          { ...cityTemplates[0], name: `${input.destination} City`, shareOfTrip: 0.55 },
-          { ...cityTemplates[0], name: `${input.destination} Coast`, shareOfTrip: 0.45 },
-        ]
-      : cityTemplates;
-
-  const weights = effectiveTemplates.map((c) => c.shareOfTrip);
-  const daysPerCity = splitDaysAcrossCities(dayCount, weights);
-
-  // Generic activity pool, deduped by name, used to pad out generic-destination attractions.
-  const genericPool = Array.from(
-    new Map(
-      input.preferences
-        .flatMap((style) => GENERIC_ACTIVITY_BANK[style] ?? [])
-        .concat(Object.values(GENERIC_ACTIVITY_BANK).flat())
-        .map((t) => [t.name, t] as const),
-    ).values(),
+  const provider = getPlacesProvider();
+  const cityPlans = planCities(input.destination, dayCount);
+  const daysPerCity = splitDaysAcrossCities(
+    dayCount,
+    cityPlans.map((c) => c.shareOfTrip),
   );
 
   const cities: City[] = [];
@@ -258,24 +282,34 @@ export function generateItinerary(input: TripDraftInput): GeneratedItinerary {
   let cursorDate = input.startDate;
   let dayOffset = 0;
 
-  effectiveTemplates.forEach((cityTemplate, i) => {
+  for (let i = 0; i < cityPlans.length; i++) {
+    const plan = cityPlans[i];
     const count = daysPerCity[i];
-    const effectiveTemplate: CityTemplate =
-      cityTemplate.attractions.length > 0 ? cityTemplate : { ...cityTemplate, attractions: genericPool };
-    const isLast = i === effectiveTemplates.length - 1;
-    const city = buildCityFromTemplate(cityTemplate, i, cursorDate, count, isLast, input.currency);
+    const isLast = i === cityPlans.length - 1;
+    const nights = Math.max(1, isLast ? count - 1 : count);
+
+    const places = await fetchCityPlaces(provider, plan.name, plan.country, input.preferences, input.currency);
+    const hotel = placeToHotel(places.hotel, plan.name, nights, input.currency);
+
+    const city: City = {
+      id: makeId("city"),
+      name: plan.name,
+      country: plan.country,
+      order: i,
+      startDate: cursorDate,
+      endDate: addDaysIso(cursorDate, count - 1),
+      dayCount: count,
+      hotel,
+      imageQuery: plan.imageQuery,
+    };
     cities.push(city);
-    days.push(
-      ...buildDaysForCity(city, effectiveTemplate, dayOffset, input.preferences, input.currency, i === 0),
-    );
+    days.push(...buildDaysForCity(city, places, dayOffset, i === 0));
+
     cursorDate = addDaysIso(cursorDate, count);
     dayOffset += count;
-  });
+  }
 
-  const flightCostTotal = fromInr(
-    (template?.flightTierPerTraveler ?? 25_000) * input.travelers,
-    input.currency,
-  );
+  const flightCostTotal = fromInr(flightTierPerTraveler(input.destination) * input.travelers, input.currency);
 
   const budget = computeBudgetBreakdown({
     cities,

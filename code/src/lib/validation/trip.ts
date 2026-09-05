@@ -1,4 +1,8 @@
 import { z } from "zod";
+import { latLngSchema, ratingSchema, sourceRefSchema } from "@/lib/validation/places";
+import { travelStyleSchema } from "@/lib/validation/shared";
+
+export { travelStyleSchema };
 
 /**
  * Zod schemas mirror the types in `@/types`. The itinerary generator's output
@@ -6,17 +10,6 @@ import { z } from "zod";
  * client or Firestore — a malformed AI/mock response should fail loudly in
  * the API route rather than silently corrupting a saved trip.
  */
-
-export const travelStyleSchema = z.enum([
-  "beaches",
-  "food",
-  "culture",
-  "adventure",
-  "nightlife",
-  "shopping",
-  "nature",
-  "relaxation",
-]);
 
 export const travelerTypeSchema = z.enum(["solo", "couple", "family", "friends", "custom"]);
 
@@ -43,6 +36,15 @@ const activityCategorySchema = z.enum([
   "transport",
 ]);
 
+/** Optional, additive place-provenance fields shared by activities and hotels (Iteration 2). */
+const placeProvenanceFields = {
+  location: latLngSchema.nullable().optional(),
+  rating: ratingSchema.nullable().optional(),
+  imageUrl: z.string().nullable().optional(),
+  source: sourceRefSchema.nullable().optional(),
+  priceIsEstimate: z.boolean().optional(),
+};
+
 export const activitySchema = z.object({
   id: z.string(),
   name: z.string().min(1),
@@ -54,6 +56,7 @@ export const activitySchema = z.object({
   currency: z.string(),
   referenceUrl: z.string().url().nullable(),
   isDemoData: z.boolean(),
+  ...placeProvenanceFields,
 });
 
 export const hotelSchema = z.object({
@@ -63,6 +66,7 @@ export const hotelSchema = z.object({
   nights: z.number().nonnegative(),
   referenceUrl: z.string().url().nullable(),
   isDemoData: z.boolean(),
+  ...placeProvenanceFields,
 });
 
 export const citySchema = z.object({

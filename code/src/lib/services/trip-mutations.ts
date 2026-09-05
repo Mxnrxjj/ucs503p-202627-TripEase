@@ -72,6 +72,12 @@ export function applySuggestion(trip: Trip, suggestion: SavingsSuggestion) {
       return updateHotel(trip, city.id, {
         name: city.hotel.name.replace(/\(demo\)/i, "").trim() + " — budget option (demo)",
         pricePerNight: Math.round(city.hotel.pricePerNight * 0.7),
+        isDemoData: true,
+        referenceUrl: null,
+        rating: null,
+        imageUrl: null,
+        source: null,
+        priceIsEstimate: true,
       });
     }
     case "activity-swap": {
@@ -81,6 +87,12 @@ export function applySuggestion(trip: Trip, suggestion: SavingsSuggestion) {
       return updateActivity(trip, day.id, activity.id, {
         name: `${activity.name} (shared group tour)`,
         estimatedCost: Math.round(activity.estimatedCost * 0.4),
+        isDemoData: true,
+        referenceUrl: null,
+        rating: null,
+        imageUrl: null,
+        source: null,
+        priceIsEstimate: true,
       });
     }
     case "food-swap": {

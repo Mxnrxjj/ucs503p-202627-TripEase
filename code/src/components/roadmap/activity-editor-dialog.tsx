@@ -55,6 +55,7 @@ export function activityFromForm(value: ActivityFormValue, currency: string): Ac
     currency,
     referenceUrl: value.referenceUrl?.trim() || null,
     isDemoData: true,
+    priceIsEstimate: false,
   };
 }
 

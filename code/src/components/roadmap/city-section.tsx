@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BedDouble, ChevronDown, Pencil } from "lucide-react";
+import { BedDouble, ChevronDown, Pencil, Star } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui";
 import { cn, formatDateShort, formatMoney } from "@/lib/utils";
@@ -56,10 +56,17 @@ export function CitySection({
           <span>
             <span className="flex items-center gap-1.5 text-sm font-medium text-zinc-900 dark:text-zinc-100">
               {city.hotel.name}
+              {city.hotel.rating ? (
+                <span className="inline-flex items-center gap-0.5 text-xs font-normal text-zinc-500">
+                  <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                  {city.hotel.rating.value.toFixed(1)}
+                </span>
+              ) : null}
               <Pencil className="h-3 w-3 text-zinc-400 opacity-0 group-hover:opacity-100" />
             </span>
             <span className="text-xs text-zinc-500">
-              {formatMoney(city.hotel.pricePerNight, currency)}/night · {city.hotel.nights} nights ·{" "}
+              {formatMoney(city.hotel.pricePerNight, currency)}/night
+              {city.hotel.priceIsEstimate !== false ? " (est.)" : ""} · {city.hotel.nights} nights ·{" "}
               {formatMoney(hotelTotal, currency)}
               {city.hotel.isDemoData ? " · demo" : ""}
             </span>

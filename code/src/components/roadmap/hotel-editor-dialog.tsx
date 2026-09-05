@@ -59,12 +59,19 @@ export function HotelEditorDialog({
           </Button>
           <Button
             onClick={() => {
+              const nameChanged = name.trim() !== hotel.name;
               onSave({
                 name: name.trim(),
                 pricePerNight: Math.max(0, Number(price) || 0),
                 nights: Math.max(1, Number(nights) || 1),
-                isDemoData: true,
-                referenceUrl: null,
+                // Renaming means it's no longer the place the trip was generated
+                // with, so its real-place provenance no longer applies. Just
+                // adjusting price/nights for the same hotel keeps it — the price
+                // the traveller entered is exact, not an estimate.
+                ...(nameChanged
+                  ? { isDemoData: true, referenceUrl: null, rating: null, imageUrl: null, source: null }
+                  : {}),
+                priceIsEstimate: false,
               });
               onOpenChange(false);
             }}
