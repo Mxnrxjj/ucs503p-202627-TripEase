@@ -1,13 +1,13 @@
 "use client";
 
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { Alert, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
+import { ArrowLeft, Map as MapIcon } from "lucide-react";
+import { Alert, Button, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
 import { CitySection } from "@/components/roadmap/city-section";
 import { TripHeader } from "@/components/roadmap/trip-header";
 import { BudgetPanel } from "@/components/budget/budget-panel";
-import { MockMap } from "@/components/maps/mock-map";
+import { TripMap } from "@/components/maps/trip-map";
 import { buildSavingsSuggestions } from "@/lib/services/budget-engine";
 import { subscribeToTrip, updateTripItinerary } from "@/lib/services/trips";
 import {
@@ -18,6 +18,8 @@ import {
   updateActivity,
   updateHotel,
 } from "@/lib/services/trip-mutations";
+import type { MapFilter, MapFilterMode } from "@/lib/services/map-points";
+import { cn } from "@/lib/utils";
 import type { Activity, City } from "@/types/itinerary";
 import type { SavingsSuggestion } from "@/types/budget";
 import type { Trip } from "@/types/trip";
@@ -27,6 +29,9 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
   const [trip, setTrip] = useState<Trip | null | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [expandedDayId, setExpandedDayId] = useState<string | null>(null);
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+  const [mapMode, setMapMode] = useState<MapFilterMode>("all");
+  const [mapOpenOnMobile, setMapOpenOnMobile] = useState(false);
 
   useEffect(() => {
     return subscribeToTrip(
@@ -45,6 +50,53 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
   const suggestions = useMemo<SavingsSuggestion[]>(
     () => (trip ? buildSavingsSuggestions(trip.cities, trip.days, trip.budget) : []),
     [trip],
+  );
+
+  /**
+   * Selecting a place from the map has to reveal it in the roadmap: expand
+   * the day it lives in, then scroll it into view once that day has rendered.
+   * Selecting from the roadmap runs through the same path — the day is
+   * already open, and `block: "nearest"` means an already-visible row doesn't
+   * jump around.
+   */
+  const handleSelectPlace = useCallback(
+    (id: string | null) => {
+      setSelectedPlaceId(id);
+      if (!id || !trip) return;
+      if (!id.startsWith("hotel:")) {
+        const day = trip.days.find((d) => d.activities.some((a) => a.id === id));
+        if (day) setExpandedDayId(day.id);
+      }
+    },
+    [trip],
+  );
+
+  useEffect(() => {
+    if (!selectedPlaceId) return;
+    const elementId = selectedPlaceId.startsWith("hotel:")
+      ? `hotel-${selectedPlaceId.slice("hotel:".length)}`
+      : `activity-${selectedPlaceId}`;
+    // One frame for the newly-expanded day to mount before we measure it.
+    const timer = window.setTimeout(() => {
+      document.getElementById(elementId)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [selectedPlaceId]);
+
+  const sortedCities = useMemo(
+    () => (trip ? [...trip.cities].sort((a, b) => a.order - b.order) : []),
+    [trip],
+  );
+
+  // The map's city/day filters follow whichever day the roadmap has open,
+  // rather than duplicating the roadmap's navigation with its own pickers.
+  const focusedDay = useMemo(
+    () => trip?.days.find((d) => d.id === expandedDayId) ?? trip?.days[0] ?? null,
+    [trip, expandedDayId],
+  );
+  const mapFilter = useMemo<MapFilter>(
+    () => ({ mode: mapMode, dayId: focusedDay?.id ?? null, cityId: focusedDay?.cityId ?? null }),
+    [mapMode, focusedDay],
   );
 
   if (loadError) {
@@ -84,6 +136,7 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
     if (!trip) return;
     const { days, budget } = deleteActivity(trip, dayId, activityId);
     persist({ days, budget });
+    if (selectedPlaceId === activityId) setSelectedPlaceId(null);
   }
 
   function handleReorder(dayId: string, orderedIds: string[]) {
@@ -104,8 +157,6 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
     if (result) persist(result);
   }
 
-  const sortedCities = [...trip.cities].sort((a, b) => a.order - b.order);
-
   return (
     <div className="flex flex-col gap-8">
       <Link
@@ -122,33 +173,52 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
         <TabsList>
           <TabsTrigger value="roadmap">Roadmap</TabsTrigger>
           <TabsTrigger value="budget">Budget</TabsTrigger>
-          <TabsTrigger value="map">Map</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="roadmap" className="mt-6 flex flex-col gap-10 focus:outline-none">
-          {sortedCities.map((city) => (
-            <CitySection
-              key={city.id}
-              city={city}
-              days={trip.days.filter((d) => d.cityId === city.id).sort((a, b) => a.dayNumber - b.dayNumber)}
-              currency={trip.currency}
-              expandedDayId={expandedDayId}
-              onToggleDay={(dayId) => setExpandedDayId((cur) => (cur === dayId ? null : dayId))}
-              onEditHotel={(patch) => handleEditHotel(city.id, patch)}
-              onAddActivity={handleAddActivity}
-              onEditActivity={handleEditActivity}
-              onDeleteActivity={handleDeleteActivity}
-              onReorderActivities={handleReorder}
-            />
-          ))}
+        <TabsContent value="roadmap" className="mt-6 focus:outline-none">
+          <div className="mb-4 lg:hidden">
+            <Button variant="secondary" size="sm" onClick={() => setMapOpenOnMobile((open) => !open)}>
+              <MapIcon className="h-3.5 w-3.5" />
+              {mapOpenOnMobile ? "Hide map" : "Show map"}
+            </Button>
+          </div>
+
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]">
+            <aside className={cn("order-1 lg:order-2", !mapOpenOnMobile && "hidden lg:block")}>
+              <TripMap
+                trip={trip}
+                filter={mapFilter}
+                onFilterChange={(next) => setMapMode(next.mode)}
+                selectedId={selectedPlaceId}
+                onSelect={handleSelectPlace}
+                className="h-[360px] lg:sticky lg:top-24 lg:h-[calc(100vh-9rem)]"
+              />
+            </aside>
+
+            <div className="order-2 flex min-w-0 flex-col gap-10 lg:order-1">
+              {sortedCities.map((city) => (
+                <CitySection
+                  key={city.id}
+                  city={city}
+                  days={trip.days.filter((d) => d.cityId === city.id).sort((a, b) => a.dayNumber - b.dayNumber)}
+                  currency={trip.currency}
+                  expandedDayId={expandedDayId}
+                  selectedPlaceId={selectedPlaceId}
+                  onSelectPlace={handleSelectPlace}
+                  onToggleDay={(dayId) => setExpandedDayId((cur) => (cur === dayId ? null : dayId))}
+                  onEditHotel={(patch) => handleEditHotel(city.id, patch)}
+                  onAddActivity={handleAddActivity}
+                  onEditActivity={handleEditActivity}
+                  onDeleteActivity={handleDeleteActivity}
+                  onReorderActivities={handleReorder}
+                />
+              ))}
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="budget" className="mt-6 max-w-2xl focus:outline-none">
           <BudgetPanel budget={trip.budget} suggestions={suggestions} onApplySuggestion={handleApplySuggestion} />
-        </TabsContent>
-
-        <TabsContent value="map" className="mt-6 max-w-2xl focus:outline-none">
-          <MockMap cities={sortedCities} days={trip.days} />
         </TabsContent>
       </Tabs>
     </div>

@@ -1,30 +1,42 @@
 import { fromInr } from "@/lib/mock-data/fx";
-import { googleTextSearchResponseSchema, type GoogleRawPlace } from "@/lib/validation/places";
+import {
+  googlePlaceDetailsSchema,
+  googleTextSearchResponseSchema,
+  type GoogleRawPlace,
+} from "@/lib/validation/places";
 import type { ActivityCategory, TravelStyle } from "@/types/itinerary";
 import type { Place, PlaceType, Rating } from "@/types/place";
+import { TtlCache } from "./cache";
+import { codeForHttpStatus, PlacesProviderError } from "./errors";
 import type { PlaceSearchParams, PlacesProvider } from "./provider";
 
 /**
- * Live provider backed by the Places API (New) `searchText` endpoint.
- * `GOOGLE_PLACES_API_KEY` is a server-only env var (no `NEXT_PUBLIC_`
- * prefix) — this class is only ever instantiated in `getPlacesProvider()`,
- * which is only ever called from a server context (the `/api/trips/generate`
- * route), so the key never reaches the client. Photo URLs are relative
- * links into `/api/places/photo`, which is the only place the key touches
- * an outgoing request besides this file.
+ * Live provider backed by the Places API (New).
  *
- * Google Places does not return an exact price for attractions or
- * restaurants, and rarely returns one for hotels — only a coarse
- * `priceLevel` enum. Amounts derived from it are always marked
- * `price.isEstimate = true`; we never present an inferred number as a
- * verified price.
+ * `GOOGLE_PLACES_API_KEY` is a server-only env var (no `NEXT_PUBLIC_`
+ * prefix). This class is only constructed by `getPlacesProvider()`, which is
+ * only called from server code (the trip-generation and place-search API
+ * routes), so the key never reaches the browser. Photo URLs are relative
+ * links into `/api/places/photo`, which is the only other place the key is
+ * ever attached to an outgoing request.
+ *
+ * What Google does and doesn't give us, and how that's represented:
+ * - Identity, coordinates, address, rating, review count, website: real, used as-is.
+ * - Price: only a coarse `priceLevel` enum, never an amount. Anything we show
+ *   as a cost is derived from that enum and always flagged
+ *   `price.isEstimate = true`. It is never presented as a Google price.
+ * - Opening hours, live availability, bookability: not requested, not implied.
  */
 
 const SEARCH_URL = "https://places.googleapis.com/v1/places:searchText";
-const FIELD_MASK = [
+const DETAILS_URL = "https://places.googleapis.com/v1/";
+
+/** Fields requested for search results. Kept tight — Places API bills per field group. */
+const SEARCH_FIELDS = [
   "places.id",
   "places.displayName",
   "places.formattedAddress",
+  "places.addressComponents",
   "places.location",
   "places.rating",
   "places.userRatingCount",
@@ -35,6 +47,9 @@ const FIELD_MASK = [
   "places.types",
   "places.photos",
 ].join(",");
+
+/** Same fields for a single-place lookup (no `places.` prefix on the details endpoint). */
+const DETAILS_FIELDS = SEARCH_FIELDS.replaceAll("places.", "");
 
 const PRICE_LEVEL_TO_INR: Record<string, number> = {
   PRICE_LEVEL_FREE: 0,
@@ -106,7 +121,21 @@ function inferPrice(
   return { amount: fromInr(PRICE_LEVEL_TO_INR[raw.priceLevel] * multiplier, currency), currency, isEstimate: true };
 }
 
+/** Pull city/country out of Google's address components. Null when absent — never guessed. */
+function inferPlaceArea(raw: GoogleRawPlace): { city: string | null; country: string | null } {
+  const components = raw.addressComponents ?? [];
+  const find = (type: string) => components.find((c) => c.types?.includes(type))?.longText ?? null;
+  return {
+    city: find("locality") ?? find("administrative_area_level_2") ?? find("administrative_area_level_1"),
+    country: find("country"),
+  };
+}
+
 function buildQuery(params: PlaceSearchParams): string {
+  if (params.query?.trim()) {
+    const place = params.country ? `${params.destination}, ${params.country}` : params.destination;
+    return `${params.query.trim()} in ${place}`;
+  }
   const place = params.country ? `${params.destination}, ${params.country}` : params.destination;
   switch (params.type) {
     case "hotel":
@@ -123,48 +152,114 @@ function buildQuery(params: PlaceSearchParams): string {
   }
 }
 
+/**
+ * Shared across requests in this server process. Trip generation issues six
+ * searches per city, and regenerating a similar trip repeats them verbatim —
+ * this keeps that from becoming six more billable calls every time.
+ */
+const searchCache = new TtlCache<Place[]>();
+const detailsCache = new TtlCache<Place | null>();
+
 export class GooglePlacesProvider implements PlacesProvider {
   readonly name = "google" as const;
 
   constructor(private readonly apiKey: string) {}
 
   async searchPlaces(params: PlaceSearchParams): Promise<Place[]> {
+    const currency = params.currency ?? "INR";
+    const limit = Math.min(params.limit ?? 10, 20);
+    const textQuery = buildQuery(params);
+    const cacheKey = JSON.stringify({ textQuery, limit, currency, type: params.type, meal: params.mealType });
+
+    return searchCache.wrap(cacheKey, async () => {
+      const json = await this.post(SEARCH_URL, SEARCH_FIELDS, {
+        textQuery,
+        maxResultCount: limit,
+      });
+
+      const parsed = googleTextSearchResponseSchema.safeParse(json);
+      if (!parsed.success) {
+        throw new PlacesProviderError(
+          "malformed-response",
+          "Places search response did not match the expected shape.",
+          parsed.error,
+        );
+      }
+
+      const hotelMultiplier = params.type === "hotel" ? 3 : 1;
+      return (parsed.data.places ?? [])
+        .filter((raw) => Boolean(raw.displayName?.text))
+        .map((raw) => this.mapPlace(raw, params.type, currency, hotelMultiplier, params.mealType))
+        .slice(0, limit);
+    });
+  }
+
+  async getPlaceDetails(providerPlaceId: string, options?: { currency?: string }): Promise<Place | null> {
+    const currency = options?.currency ?? "INR";
+    // Accept both "places/ChIJ..." and a bare id.
+    const resourceName = providerPlaceId.startsWith("places/") ? providerPlaceId : `places/${providerPlaceId}`;
+
+    return detailsCache.wrap(`${resourceName}:${currency}`, async () => {
+      let json: unknown;
+      try {
+        json = await this.get(`${DETAILS_URL}${resourceName}`, DETAILS_FIELDS);
+      } catch (error) {
+        // A stale/unknown id is a normal outcome, not a failure to report.
+        if (error instanceof PlacesProviderError && error.code === "provider-error") return null;
+        throw error;
+      }
+
+      const parsed = googlePlaceDetailsSchema.safeParse(json);
+      if (!parsed.success) {
+        throw new PlacesProviderError(
+          "malformed-response",
+          "Place details response did not match the expected shape.",
+          parsed.error,
+        );
+      }
+      if (!parsed.data.displayName?.text) return null;
+      return this.mapPlace(parsed.data, "attraction", currency, 1, undefined);
+    });
+  }
+
+  private async post(url: string, fieldMask: string, body: unknown): Promise<unknown> {
+    return this.request(url, { method: "POST", body: JSON.stringify(body) }, fieldMask);
+  }
+
+  private async get(url: string, fieldMask: string): Promise<unknown> {
+    return this.request(url, { method: "GET" }, fieldMask);
+  }
+
+  private async request(url: string, init: RequestInit, fieldMask: string): Promise<unknown> {
+    let response: Response;
     try {
-      const response = await fetch(SEARCH_URL, {
-        method: "POST",
+      response = await fetch(url, {
+        ...init,
         headers: {
           "Content-Type": "application/json",
           "X-Goog-Api-Key": this.apiKey,
-          "X-Goog-FieldMask": FIELD_MASK,
+          "X-Goog-FieldMask": fieldMask,
         },
-        body: JSON.stringify({
-          textQuery: buildQuery(params),
-          maxResultCount: Math.min(params.limit ?? 10, 20),
-        }),
       });
-
-      if (!response.ok) {
-        console.error(`Google Places search failed (${response.status})`, await response.text().catch(() => ""));
-        return [];
-      }
-
-      const json: unknown = await response.json();
-      const parsed = googleTextSearchResponseSchema.safeParse(json);
-      if (!parsed.success) {
-        console.error("Google Places response failed validation", parsed.error);
-        return [];
-      }
-
-      const currency = params.currency ?? "INR";
-      const hotelPriceMultiplier = params.type === "hotel" ? 3 : 1;
-
-      return (parsed.data.places ?? [])
-        .filter((raw): raw is GoogleRawPlace & { displayName: { text: string } } => Boolean(raw.displayName?.text))
-        .map((raw) => this.mapPlace(raw, params.type, currency, hotelPriceMultiplier, params.mealType))
-        .slice(0, params.limit ?? 10);
     } catch (error) {
-      console.error("Google Places request failed", error);
-      return [];
+      throw new PlacesProviderError("network", "Could not reach the Places API.", error);
+    }
+
+    if (!response.ok) {
+      // Read the body for server logs only — it can name the project/key, so
+      // it must never travel back to the client.
+      const detail = await response.text().catch(() => "");
+      console.error(`[places] Google Places ${response.status}: ${detail.slice(0, 500)}`);
+      throw new PlacesProviderError(
+        codeForHttpStatus(response.status),
+        `Places API responded with ${response.status}.`,
+      );
+    }
+
+    try {
+      return await response.json();
+    } catch (error) {
+      throw new PlacesProviderError("malformed-response", "Places API returned invalid JSON.", error);
     }
   }
 
@@ -176,8 +271,11 @@ export class GooglePlacesProvider implements PlacesProvider {
     mealType: PlaceSearchParams["mealType"],
   ): Place {
     const { category, styleTags } = inferCategoryAndStyles(raw.types, type);
+    const { city, country } = inferPlaceArea(raw);
+    const providerPlaceId = raw.id ?? null;
+
     return {
-      id: `google:${raw.id ?? raw.displayName!.text}`,
+      id: providerPlaceId ? `google:${providerPlaceId}` : `google:${raw.displayName!.text}`,
       type,
       name: raw.displayName!.text,
       description: raw.editorialSummary?.text ?? "",
@@ -185,6 +283,8 @@ export class GooglePlacesProvider implements PlacesProvider {
       styleTags,
       location: raw.location ? { lat: raw.location.latitude, lng: raw.location.longitude } : null,
       address: raw.formattedAddress ?? null,
+      city,
+      country,
       imageUrl: raw.photos?.[0] ? `/api/places/photo?name=${encodeURIComponent(raw.photos[0].name)}` : null,
       rating: inferRating(raw),
       price: inferPrice(raw, currency, priceMultiplier),
@@ -192,6 +292,7 @@ export class GooglePlacesProvider implements PlacesProvider {
       mealTypes: type === "restaurant" && mealType ? [mealType] : null,
       source: {
         provider: "google",
+        providerPlaceId,
         sourceUrl: raw.googleMapsUri ?? raw.websiteUri ?? null,
         sourceName: raw.googleMapsUri ? "Google Maps" : raw.websiteUri ? "Official website" : null,
       },

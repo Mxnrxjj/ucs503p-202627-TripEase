@@ -34,9 +34,21 @@ export interface PriceInfo {
   isEstimate: boolean;
 }
 
-/** Where a place's data came from, so the UI can show real provenance. */
+/**
+ * Where a place's data came from, so the UI can show real provenance.
+ * This travels with a place all the way into the saved itinerary, which is
+ * what lets an edit later tell "same real place, new price" apart from
+ * "the traveller replaced this with something else entirely".
+ */
 export interface SourceRef {
   provider: "mock" | "google";
+  /**
+   * The provider's own stable id for this place (a Google `places/…` id).
+   * The single home for the provider place id — `Place.id` is the
+   * app-namespaced form of the same thing (`google:<providerPlaceId>`), so
+   * storing it twice would just invite the two copies to drift apart.
+   */
+  providerPlaceId: string | null;
   /** A real, working URL (e.g. a Wikipedia article or Google Maps place page). Never fabricated. */
   sourceUrl: string | null;
   /** Human-readable label for the source, e.g. "Wikipedia" or "Google Places". */
@@ -53,7 +65,11 @@ export interface Place {
   /** Coarse travel-style tags used to rank places against the traveller's preferences. */
   styleTags: TravelStyle[];
   location: LatLng | null;
+  /** Provider-supplied formatted address. Null when the provider has none — never guessed. */
   address: string | null;
+  /** Parsed from the provider's address components where available, else null. */
+  city: string | null;
+  country: string | null;
   /** Relative URL into this app's image proxy (see `/api/places/photo`), never a raw provider URL with a key attached. */
   imageUrl: string | null;
   rating: Rating | null;
@@ -69,3 +85,24 @@ export interface Place {
 export type Attraction = Place & { type: "attraction" };
 export type Restaurant = Place & { type: "restaurant" };
 export type HotelPlace = Place & { type: "hotel" };
+
+/**
+ * How much of a place is real-world verified. Derived rather than stored:
+ * a second persisted "verified" boolean alongside `isDemoData` could drift
+ * out of sync with it, and there'd be no way to tell which one was right.
+ *
+ * - `live`  — a real place fetched from a live provider (Google Places).
+ * - `cited` — a real place from curated content that cites a real source
+ *             (e.g. a Wikipedia article for a famous landmark).
+ * - `demo`  — placeholder/demo content, or something the traveller typed in.
+ */
+export type PlaceVerification = "live" | "cited" | "demo";
+
+export function verificationOf(input: {
+  isDemoData: boolean;
+  source?: SourceRef | null;
+}): PlaceVerification {
+  if (input.isDemoData) return "demo";
+  if (input.source?.provider === "google") return "live";
+  return input.source?.sourceUrl ? "cited" : "demo";
+}

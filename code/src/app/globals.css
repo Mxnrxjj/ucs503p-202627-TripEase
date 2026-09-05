@@ -97,6 +97,25 @@ body {
   animation: float-slow 6s ease-in-out infinite;
 }
 
+/*
+ * OpenStreetMap has no official dark basemap. Inverting the light tiles was
+ * tried and made the map an unreadable near-black field, so dark mode just
+ * takes the glare off instead and keeps the map legible. Only the tile pane
+ * is touched — markers, popups and the attribution keep their real colours.
+ */
+.tripease-map-dark .leaflet-tile-pane {
+  filter: brightness(0.86) saturate(0.85);
+}
+
+.tripease-map-dark .leaflet-control-attribution {
+  background: rgba(24, 24, 27, 0.85);
+  color: #a1a1aa;
+}
+
+.tripease-map-dark .leaflet-control-attribution a {
+  color: #d4d4d8;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in,
   .animate-scale-in,

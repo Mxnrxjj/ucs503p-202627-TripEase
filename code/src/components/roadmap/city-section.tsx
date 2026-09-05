@@ -14,6 +14,8 @@ export function CitySection({
   days,
   currency,
   expandedDayId,
+  selectedPlaceId,
+  onSelectPlace,
   onToggleDay,
   onEditHotel,
   onAddActivity,
@@ -25,6 +27,8 @@ export function CitySection({
   days: TripDay[];
   currency: string;
   expandedDayId: string | null;
+  selectedPlaceId?: string | null;
+  onSelectPlace?: (id: string | null) => void;
   onToggleDay: (dayId: string) => void;
   onEditHotel: (patch: Partial<City["hotel"]>) => void;
   onAddActivity: (dayId: string, activity: Activity) => void;
@@ -49,8 +53,13 @@ export function CitySection({
         </div>
 
         <button
+          id={`hotel-${city.id}`}
           onClick={() => setEditingHotel(true)}
-          className="group flex items-center gap-3 rounded-xl border border-zinc-200 px-3.5 py-2.5 text-left transition-colors hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-800 dark:hover:bg-zinc-800"
+          className={cn(
+            "group flex scroll-mt-24 items-center gap-3 rounded-xl border border-zinc-200 px-3.5 py-2.5 text-left transition-colors hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-800 dark:hover:bg-zinc-800",
+            selectedPlaceId === `hotel:${city.id}` &&
+              "border-orange-300 bg-orange-50/70 dark:border-orange-800 dark:bg-orange-950/30",
+          )}
         >
           <BedDouble className="h-4 w-4 shrink-0 text-orange-600" />
           <span>
@@ -119,7 +128,10 @@ export function CitySection({
                     <DayView
                       day={day}
                       cityName={city.name}
+                      cityCountry={city.country}
                       currency={currency}
+                      selectedPlaceId={selectedPlaceId}
+                      onSelectPlace={onSelectPlace}
                       onAddActivity={(a) => onAddActivity(day.id, a)}
                       onEditActivity={(id, patch) => onEditActivity(day.id, id, patch)}
                       onDeleteActivity={(id) => onDeleteActivity(day.id, id)}

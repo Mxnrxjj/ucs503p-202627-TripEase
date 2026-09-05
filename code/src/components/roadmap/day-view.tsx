@@ -7,7 +7,12 @@ import { useState } from "react";
 import { Button } from "@/components/ui";
 import { formatDateLong, formatMoney } from "@/lib/utils";
 import type { Activity, TripDay } from "@/types/itinerary";
-import { ActivityEditorDialog, activityFromForm, type ActivityFormValue } from "./activity-editor-dialog";
+import {
+  ActivityEditorDialog,
+  activityFromForm,
+  placeMetadataPatch,
+  type ActivityFormValue,
+} from "./activity-editor-dialog";
 import { ActivityRow } from "./activity-row";
 
 const BLANK_ACTIVITY: ActivityFormValue = {
@@ -23,7 +28,10 @@ const BLANK_ACTIVITY: ActivityFormValue = {
 export function DayView({
   day,
   cityName,
+  cityCountry,
   currency,
+  selectedPlaceId,
+  onSelectPlace,
   onAddActivity,
   onEditActivity,
   onDeleteActivity,
@@ -31,7 +39,10 @@ export function DayView({
 }: {
   day: TripDay;
   cityName: string;
+  cityCountry?: string | null;
   currency: string;
+  selectedPlaceId?: string | null;
+  onSelectPlace?: (id: string | null) => void;
   onAddActivity: (activity: Activity) => void;
   onEditActivity: (activityId: string, patch: Partial<Activity>) => void;
   onDeleteActivity: (activityId: string) => void;
@@ -79,6 +90,10 @@ export function DayView({
                 <ActivityRow
                   key={activity.id}
                   activity={activity}
+                  selected={selectedPlaceId === activity.id}
+                  onSelect={() =>
+                    onSelectPlace?.(selectedPlaceId === activity.id ? null : activity.id)
+                  }
                   onEdit={() => setEditing(activity)}
                   onDelete={() => onDeleteActivity(activity.id)}
                 />
@@ -109,7 +124,14 @@ export function DayView({
             estimatedCost: editing.estimatedCost,
             referenceUrl: editing.referenceUrl,
           }}
-          onSave={(value) => {
+          onSave={({ place, ...value }) => {
+            // Picked a real place from search: it brings its own identity, so
+            // the whole provenance block is replaced rather than reset.
+            if (place) {
+              onEditActivity(editing.id, { ...value, ...placeMetadataPatch(place, value.estimatedCost) });
+              return;
+            }
+
             const nameChanged = value.name.trim() !== editing.name;
             const newReferenceUrl = value.referenceUrl?.trim() || null;
             // If the reference URL wasn't itself touched, it's just stale
@@ -125,11 +147,19 @@ export function DayView({
               // just adjusting the cost/time/etc. of the same place keeps it,
               // and means the traveller has now given an exact price, not a guess.
               ...(nameChanged
-                ? { isDemoData: true, rating: null, imageUrl: null, source: null, location: null }
+                ? {
+                    isDemoData: true,
+                    rating: null,
+                    imageUrl: null,
+                    source: null,
+                    location: null,
+                    address: null,
+                  }
                 : {}),
               priceIsEstimate: false,
             });
           }}
+          searchContext={{ destination: cityName, country: cityCountry, currency }}
         />
       ) : null}
 
@@ -139,6 +169,7 @@ export function DayView({
         title="Add activity"
         initial={BLANK_ACTIVITY}
         onSave={(value) => onAddActivity(activityFromForm(value, currency))}
+        searchContext={{ destination: cityName, country: cityCountry, currency }}
       />
     </div>
   );

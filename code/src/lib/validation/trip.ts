@@ -39,6 +39,7 @@ const activityCategorySchema = z.enum([
 /** Optional, additive place-provenance fields shared by activities and hotels (Iteration 2). */
 const placeProvenanceFields = {
   location: latLngSchema.nullable().optional(),
+  address: z.string().nullable().optional(),
   rating: ratingSchema.nullable().optional(),
   imageUrl: z.string().nullable().optional(),
   source: sourceRefSchema.nullable().optional(),

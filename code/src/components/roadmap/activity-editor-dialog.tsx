@@ -12,6 +12,8 @@ import {
   Textarea,
 } from "@/components/ui";
 import { ACTIVITY_CATEGORY_ICON, type Activity, type ActivityCategory } from "@/types/itinerary";
+import type { Place } from "@/types/place";
+import { PlaceSearchField } from "./place-search-field";
 
 const CATEGORIES: ActivityCategory[] = [
   "sightseeing",
@@ -33,6 +35,30 @@ export interface ActivityFormValue {
   description: string;
   estimatedCost: number;
   referenceUrl: string | null;
+  /**
+   * Set when the traveller picked a real place from search rather than
+   * typing a name. Carries that place's identity (coordinates, rating,
+   * source, provider id) so the saved activity points at something real
+   * instead of inheriting whatever the previous place's metadata was.
+   */
+  place?: Place | null;
+}
+
+/** Metadata an activity inherits from a picked place. Shared by add and edit. */
+export function placeMetadataPatch(place: Place, enteredCost: number): Partial<Activity> {
+  const suggested = place.price?.amount ?? null;
+  return {
+    referenceUrl: place.source.sourceUrl,
+    isDemoData: place.isDemoData,
+    location: place.location,
+    address: place.address,
+    rating: place.rating,
+    imageUrl: place.imageUrl,
+    source: place.source,
+    // A cost the traveller changed away from the provider's suggestion is
+    // their own exact figure; an untouched one is still just an estimate.
+    priceIsEstimate: suggested !== null && enteredCost === suggested ? (place.price?.isEstimate ?? true) : false,
+  };
 }
 
 function makeId(prefix: string) {
@@ -44,7 +70,7 @@ function makeId(prefix: string) {
 }
 
 export function activityFromForm(value: ActivityFormValue, currency: string): Activity {
-  return {
+  const base: Activity = {
     id: makeId("act"),
     name: value.name.trim(),
     category: value.category,
@@ -57,6 +83,8 @@ export function activityFromForm(value: ActivityFormValue, currency: string): Ac
     isDemoData: true,
     priceIsEstimate: false,
   };
+  // Typed by hand = demo data. Picked from search = whatever that place really is.
+  return value.place ? { ...base, ...placeMetadataPatch(value.place, value.estimatedCost) } : base;
 }
 
 export function ActivityEditorDialog({
@@ -65,12 +93,15 @@ export function ActivityEditorDialog({
   initial,
   onSave,
   title,
+  searchContext,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initial: ActivityFormValue;
   onSave: (value: ActivityFormValue) => void;
   title: string;
+  /** Where to search for replacement places. Omitted = no picker shown. */
+  searchContext?: { destination: string; country?: string | null; currency: string };
 }) {
   const [value, setValue] = useState<ActivityFormValue>(initial);
   const [error, setError] = useState<string | null>(null);
@@ -107,11 +138,36 @@ export function ActivityEditorDialog({
     >
       <DialogContent title={title}>
         <div className="flex flex-col gap-4">
+          {searchContext ? (
+            <PlaceSearchField
+              destination={searchContext.destination}
+              country={searchContext.country}
+              type={value.category === "food" ? "restaurant" : "attraction"}
+              currency={searchContext.currency}
+              onPick={(place) =>
+                setValue((prev) => ({
+                  ...prev,
+                  name: place.name,
+                  category: place.category,
+                  description: place.description || prev.description,
+                  durationMinutes: place.durationMinutes ?? prev.durationMinutes,
+                  estimatedCost: place.price?.amount ?? prev.estimatedCost,
+                  referenceUrl: place.source.sourceUrl,
+                  place,
+                }))
+              }
+            />
+          ) : null}
+
           <TextField
             id="activity-name"
             label="Name"
             value={value.name}
-            onChange={(e) => set("name", e.target.value)}
+            onChange={(e) =>
+              // Typing over a picked place's name detaches it — the metadata
+              // below belongs to what was picked, not to a hand-edited name.
+              setValue((prev) => ({ ...prev, name: e.target.value, place: null }))
+            }
             autoFocus
           />
 

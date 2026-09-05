@@ -47,14 +47,21 @@ function slug(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+interface Area {
+  city: string | null;
+  country: string | null;
+}
+
 function templateToPlace(
   template: ActivityTemplate,
   type: PlaceType,
   currency: string,
+  area: Area,
   mealTypes: ("breakfast" | "lunch" | "dinner")[] | null = null,
 ): Place {
+  const providerPlaceId = slug(template.name);
   return {
-    id: `mock:${slug(template.name)}`,
+    id: `mock:${providerPlaceId}`,
     type,
     name: template.name,
     description: template.description,
@@ -62,6 +69,8 @@ function templateToPlace(
     styleTags: template.styles,
     location: KNOWN_COORDINATES[template.name.toLowerCase()] ?? null,
     address: null,
+    city: area.city,
+    country: area.country,
     imageUrl: null,
     rating: null,
     price: { amount: fromInr(template.estimatedCost, currency), currency, isEstimate: true },
@@ -69,6 +78,7 @@ function templateToPlace(
     mealTypes,
     source: {
       provider: "mock",
+      providerPlaceId,
       sourceUrl: template.referenceUrl,
       sourceName: template.referenceUrl ? "Wikipedia" : null,
     },
@@ -76,9 +86,10 @@ function templateToPlace(
   };
 }
 
-function hotelTemplateToPlace(hotel: CityTemplate["hotel"], currency: string): Place {
+function hotelTemplateToPlace(hotel: CityTemplate["hotel"], currency: string, area: Area): Place {
+  const providerPlaceId = slug(hotel.name);
   return {
-    id: `mock:${slug(hotel.name)}`,
+    id: `mock:${providerPlaceId}`,
     type: "hotel",
     name: hotel.name,
     description: "",
@@ -86,12 +97,14 @@ function hotelTemplateToPlace(hotel: CityTemplate["hotel"], currency: string): P
     styleTags: [],
     location: null,
     address: null,
+    city: area.city,
+    country: area.country,
     imageUrl: null,
     rating: null,
     price: { amount: fromInr(hotel.pricePerNight, currency), currency, isEstimate: true },
     durationMinutes: null,
     mealTypes: null,
-    source: { provider: "mock", sourceUrl: null, sourceName: null },
+    source: { provider: "mock", providerPlaceId, sourceUrl: null, sourceName: null },
     isDemoData: true,
   };
 }
@@ -180,31 +193,61 @@ export class MockPlacesProvider implements PlacesProvider {
     const city = CITY_INDEX[params.destination.trim().toLowerCase()];
     const limit = params.limit ?? 10;
 
-    if (city) {
-      return this.searchCity(city, params, limit);
+    const results = city
+      ? this.searchCity(city, params, limit)
+      : this.searchGeneric(params.destination, params, limit);
+
+    // Free-text search (the "find a real place" picker) filters the curated
+    // set by name — mock mode has no search engine, just this small catalogue.
+    const query = params.query?.trim().toLowerCase();
+    if (!query) return results;
+    const matches = results.filter(
+      (p) => p.name.toLowerCase().includes(query) || p.description.toLowerCase().includes(query),
+    );
+    return matches.length > 0 ? matches : results;
+  }
+
+  /** Look one curated place up by the id `searchPlaces` gave it. */
+  async getPlaceDetails(providerPlaceId: string, options?: { currency?: string }): Promise<Place | null> {
+    const currency = options?.currency ?? "INR";
+    const wanted = providerPlaceId.replace(/^mock:/, "");
+
+    for (const city of Object.values(CITY_INDEX)) {
+      const area: Area = { city: city.name, country: city.country };
+      const candidates: Place[] = [
+        hotelTemplateToPlace(city.hotel, currency, area),
+        templateToPlace(city.breakfast, "restaurant", currency, area, ["breakfast"]),
+        ...city.lunch.map((t) => templateToPlace(t, "restaurant", currency, area, ["lunch"])),
+        ...city.dinner.map((t) => templateToPlace(t, "restaurant", currency, area, ["dinner"])),
+        ...city.attractions.map((t) => templateToPlace(t, "attraction", currency, area)),
+        ...city.eveningSpots.map((t) => templateToPlace(t, "nightlife", currency, area)),
+      ];
+      const hit = candidates.find((p) => p.source.providerPlaceId === wanted);
+      if (hit) return hit;
     }
-    return this.searchGeneric(params.destination, params, limit);
+    return null;
   }
 
   private searchCity(city: CityTemplate, params: PlaceSearchParams, limit: number): Place[] {
     const preferences = params.preferences ?? [];
     const currency = params.currency ?? "INR";
+    const area: Area = { city: city.name, country: city.country };
 
     switch (params.type) {
       case "hotel":
-        return [hotelTemplateToPlace(city.hotel, currency)];
+        return [hotelTemplateToPlace(city.hotel, currency, area)];
       case "attraction":
         return rankByPreference(
-          city.attractions.map((t) => templateToPlace(t, "attraction", currency)),
+          city.attractions.map((t) => templateToPlace(t, "attraction", currency, area)),
           preferences,
         ).slice(0, limit);
       case "nightlife":
-        return city.eveningSpots.map((t) => templateToPlace(t, "nightlife", currency)).slice(0, limit);
+        return city.eveningSpots.map((t) => templateToPlace(t, "nightlife", currency, area)).slice(0, limit);
       case "restaurant": {
         const all = [
-          templateToPlace(city.breakfast, "restaurant", currency, ["breakfast"]),
-          ...city.lunch.map((t) => templateToPlace(t, "restaurant", currency, ["lunch"])),
-          ...city.dinner.map((t) => templateToPlace(t, "restaurant", currency, ["dinner"])),
+          templateToPlace(city.breakfast, "restaurant", currency, area, ["breakfast"]),
+          ...city.lunch.map((t) => templateToPlace(t, "restaurant", currency, area, ["lunch"])),
+          ...city.dinner.map((t) => templateToPlace(t, "restaurant", currency, area, ["dinner"])),
         ];
         const filtered = params.mealType
           ? all.filter((p) => p.mealTypes?.includes(params.mealType!))
@@ -219,22 +262,23 @@ export class MockPlacesProvider implements PlacesProvider {
   private searchGeneric(destination: string, params: PlaceSearchParams, limit: number): Place[] {
     const preferences = params.preferences ?? [];
     const currency = params.currency ?? "INR";
+    const area: Area = { city: destination, country: null };
 
     switch (params.type) {
       case "hotel":
-        return [hotelTemplateToPlace(GENERIC_HOTEL(destination), currency)];
+        return [hotelTemplateToPlace(GENERIC_HOTEL(destination), currency, area)];
       case "attraction":
         return rankByPreference(
-          genericAttractions(preferences).map((t) => templateToPlace(t, "attraction", currency)),
+          genericAttractions(preferences).map((t) => templateToPlace(t, "attraction", currency, area)),
           preferences,
         ).slice(0, limit);
       case "nightlife":
-        return [templateToPlace(GENERIC_EVENING, "nightlife", currency)];
+        return [templateToPlace(GENERIC_EVENING, "nightlife", currency, area)];
       case "restaurant": {
         const all = [
-          templateToPlace(GENERIC_BREAKFAST, "restaurant", currency, ["breakfast"]),
-          templateToPlace(GENERIC_LUNCH, "restaurant", currency, ["lunch"]),
-          templateToPlace(GENERIC_DINNER, "restaurant", currency, ["dinner"]),
+          templateToPlace(GENERIC_BREAKFAST, "restaurant", currency, area, ["breakfast"]),
+          templateToPlace(GENERIC_LUNCH, "restaurant", currency, area, ["lunch"]),
+          templateToPlace(GENERIC_DINNER, "restaurant", currency, area, ["dinner"]),
         ];
         const filtered = params.mealType
           ? all.filter((p) => p.mealTypes?.includes(params.mealType!))

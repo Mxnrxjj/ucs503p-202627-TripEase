@@ -2,6 +2,7 @@ import { addDaysIso } from "@/lib/utils";
 import { findDestinationTemplate } from "@/lib/mock-data/destinations";
 import { fromInr } from "@/lib/mock-data/fx";
 import { getPlacesProvider } from "@/lib/services/places";
+import { PlacesProviderError } from "@/lib/services/places/errors";
 import { MockPlacesProvider } from "@/lib/services/places/mock-provider";
 import type { PlaceSearchParams, PlacesProvider } from "@/lib/services/places/provider";
 import { computeBudgetBreakdown } from "@/lib/services/budget-engine";
@@ -26,17 +27,24 @@ import type { GeneratedItinerary, TripDraftInput } from "@/types/trip";
 const MOCK_FALLBACK = new MockPlacesProvider();
 
 /**
- * A live provider can legitimately come back empty (no hotels indexed for
- * a tiny town, a quota error, a network blip). Rather than let a gap in
- * one provider call break the whole trip, fall back to the mock provider
- * for that one search — mock content always has *something* for any
- * destination. Every place still carries its own `source`/`isDemoData`, so
- * a hybrid itinerary (mostly-real with a mock-filled gap) is never
+ * A live provider can legitimately come back empty (no hotels indexed for a
+ * tiny town) or fail outright (bad key, quota, network blip). Rather than
+ * let a gap in one provider call break the whole trip, fall back to the mock
+ * provider for that one search — mock content always has *something* for any
+ * destination. Every place still carries its own `source`/`isDemoData`, so a
+ * hybrid itinerary (mostly-real with a mock-filled gap) is never
  * misrepresented as fully verified.
  */
 async function searchWithFallback(provider: PlacesProvider, params: PlaceSearchParams): Promise<Place[]> {
-  const results = await provider.searchPlaces(params);
-  if (results.length > 0 || provider.name === "mock") return results;
+  if (provider.name === "mock") return provider.searchPlaces(params);
+
+  try {
+    const results = await provider.searchPlaces(params);
+    if (results.length > 0) return results;
+  } catch (error) {
+    const code = error instanceof PlacesProviderError ? error.code : "unknown";
+    console.warn(`[places] live search failed (${code}) for ${params.destination}/${params.type}; using mock data.`);
+  }
   return MOCK_FALLBACK.searchPlaces(params);
 }
 
@@ -72,8 +80,18 @@ function splitDaysAcrossCities(dayCount: number, weights: number[]): number[] {
   return floors;
 }
 
-function pickRotating<T>(pool: T[], index: number): T {
-  return pool[index % pool.length];
+/**
+ * Pick from `pool` starting at `startIndex`, skipping anything already used
+ * today. Falls back to the rotating pick when every candidate is used, so a
+ * thin pool still fills the day rather than leaving gaps.
+ */
+function pickUnused(pool: Place[], startIndex: number, used: Set<string>): Place | null {
+  if (pool.length === 0) return null;
+  for (let offset = 0; offset < pool.length; offset++) {
+    const candidate = pool[(startIndex + offset) % pool.length];
+    if (!used.has(candidate.name.toLowerCase())) return candidate;
+  }
+  return pool[startIndex % pool.length];
 }
 
 /** Turn a `Place` into an itinerary `Activity`. Duration falls back to a sane default
@@ -91,6 +109,7 @@ function placeToActivity(place: Place, time: string, fallbackDurationMinutes = 9
     referenceUrl: place.source.sourceUrl,
     isDemoData: place.isDemoData,
     location: place.location,
+    address: place.address,
     rating: place.rating,
     imageUrl: place.imageUrl,
     source: place.source,
@@ -120,6 +139,7 @@ function placeToHotel(place: Place | null, cityName: string, nights: number, cur
     referenceUrl: place.source.sourceUrl,
     isDemoData: place.isDemoData,
     location: place.location,
+    address: place.address,
     rating: place.rating,
     imageUrl: place.imageUrl,
     source: place.source,
@@ -200,24 +220,23 @@ function buildDaysForCity(
       });
     }
 
-    if (places.breakfast.length > 0) {
-      activities.push(placeToActivity(pickRotating(places.breakfast, i), "09:00", 45));
-    }
-    if (places.attractions.length > 0) {
-      activities.push(placeToActivity(pickRotating(places.attractions, i * 2), "10:00"));
-    }
-    if (places.lunch.length > 0) {
-      activities.push(placeToActivity(pickRotating(places.lunch, i), "12:30", 60));
-    }
-    if (places.attractions.length > 0) {
-      activities.push(placeToActivity(pickRotating(places.attractions, i * 2 + 1), "14:00"));
-    }
-    if (places.nightlife.length > 0) {
-      activities.push(placeToActivity(pickRotating(places.nightlife, i), "18:00"));
-    }
-    if (places.dinner.length > 0) {
-      activities.push(placeToActivity(pickRotating(places.dinner, i), "20:00", 90));
-    }
+    // A live provider's breakfast/lunch/dinner searches overlap heavily — the
+    // same well-rated cafe is often the top hit for all three — so a day is
+    // built by taking the first candidate it hasn't already used.
+    const usedToday = new Set<string>();
+    const add = (pool: Place[], startIndex: number, time: string, duration?: number) => {
+      const place = pickUnused(pool, startIndex, usedToday);
+      if (!place) return;
+      usedToday.add(place.name.toLowerCase());
+      activities.push(placeToActivity(place, time, duration));
+    };
+
+    add(places.breakfast, i, "09:00", 45);
+    add(places.attractions, i * 2, "10:00");
+    add(places.lunch, i, "12:30", 60);
+    add(places.attractions, i * 2 + 1, "14:00");
+    add(places.nightlife, i, "18:00");
+    add(places.dinner, i, "20:00", 90);
 
     days.push({
       id: makeId("day"),

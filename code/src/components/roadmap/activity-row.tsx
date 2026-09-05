@@ -2,17 +2,21 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ExternalLink, GripVertical, Pencil, Star, Trash2 } from "lucide-react";
+import { ExternalLink, GripVertical, MapPin, Pencil, Star, Trash2 } from "lucide-react";
 import { ACTIVITY_CATEGORY_ICON, type Activity } from "@/types/itinerary";
 import { Badge } from "@/components/ui";
 import { cn, formatMoney } from "@/lib/utils";
 
 export function ActivityRow({
   activity,
+  selected = false,
+  onSelect,
   onEdit,
   onDelete,
 }: {
   activity: Activity;
+  selected?: boolean;
+  onSelect?: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -25,12 +29,20 @@ export function ActivityRow({
     transition,
   };
 
+  const mappable = Boolean(activity.location);
+
   return (
     <li
       ref={setNodeRef}
       style={style}
+      id={`activity-${activity.id}`}
+      // Pointer convenience only — the "Show on map" button below is the
+      // keyboard/screen-reader path, so this doesn't need to be focusable.
+      onClick={mappable ? onSelect : undefined}
       className={cn(
-        "group flex gap-3 rounded-xl border border-transparent px-3 py-3 transition-colors hover:border-zinc-200 hover:bg-zinc-50 dark:hover:border-zinc-800 dark:hover:bg-zinc-800/40",
+        "group flex scroll-mt-24 gap-3 rounded-xl border border-transparent px-3 py-3 transition-colors hover:border-zinc-200 hover:bg-zinc-50 dark:hover:border-zinc-800 dark:hover:bg-zinc-800/40",
+        mappable && "cursor-pointer",
+        selected && "border-orange-300 bg-orange-50/70 dark:border-orange-800 dark:bg-orange-950/30",
         isDragging && "z-10 border-orange-300 bg-white shadow-lg dark:bg-zinc-900",
       )}
     >
@@ -95,6 +107,7 @@ export function ActivityRow({
               href={activity.referenceUrl}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={(event) => event.stopPropagation()}
               className="inline-flex items-center gap-1 text-orange-700 hover:underline dark:text-orange-400"
             >
               View reference <ExternalLink className="h-3 w-3" />
@@ -106,16 +119,43 @@ export function ActivityRow({
         </div>
       </div>
 
-      <div className="flex shrink-0 items-start gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+      <div
+        className={cn(
+          "flex shrink-0 items-start gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100",
+          selected && "opacity-100",
+        )}
+      >
+        {mappable ? (
+          <button
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelect?.();
+            }}
+            aria-label={`Show ${activity.name} on the map`}
+            aria-pressed={selected}
+            className={cn(
+              "rounded-full p-1.5 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-700",
+              selected && "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300",
+            )}
+          >
+            <MapPin className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
         <button
-          onClick={onEdit}
+          onClick={(event) => {
+            event.stopPropagation();
+            onEdit();
+          }}
           aria-label={`Edit ${activity.name}`}
           className="rounded-full p-1.5 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-700"
         >
           <Pencil className="h-3.5 w-3.5" />
         </button>
         <button
-          onClick={onDelete}
+          onClick={(event) => {
+            event.stopPropagation();
+            onDelete();
+          }}
           aria-label={`Delete ${activity.name}`}
           className="rounded-full p-1.5 text-zinc-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-950"
         >

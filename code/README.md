@@ -26,8 +26,11 @@ Tell TripEase where you want to go → it plans it → you explore it → edit i
   data provider" below). Real places link to a genuine reference; anything
   without a verifiable source is clearly labelled "Demo data" rather than
   presented as fact.
-- **Map view** — a visual (currently mocked) route between cities and stops,
-  architected so a real Maps/Places provider can be swapped in later.
+- **Interactive map** — a real Leaflet/OpenStreetMap map of the itinerary's
+  own places, linked both ways with the roadmap: pick an activity and the map
+  centres on it, click a marker and the roadmap opens that day and highlights
+  it. Filters follow the roadmap (whole trip / current city / current day),
+  and a day's stops are joined in itinerary order.
 - **Firebase Authentication** — email/password and Google sign-in.
 - **Firestore persistence** — trips are private to their owner and enforced
   by security rules that are unit-tested in CI.
@@ -38,7 +41,7 @@ Tell TripEase where you want to go → it plans it → you explore it → edit i
 - **Tailwind CSS v4** for styling, **Radix UI** primitives (Dialog, Tabs,
   Progress) for accessible interactive components
 - **Framer Motion** for animation, **@dnd-kit** for drag-and-drop reordering,
-  **Recharts** for the budget chart
+  **Recharts** for the budget chart, **Leaflet / react-leaflet** for the map
 - **Zod** for validating trip input and generated itineraries
 - **Firebase Auth** + **Cloud Firestore** — no separate backend; Next.js API
   routes handle itinerary generation, Firestore security rules are the
@@ -77,8 +80,9 @@ Trip generation needs no API key by default — see "Places data provider" below
 
 ## Places data provider
 
-`src/lib/services/places/` is a small provider abstraction with one
-interface (`PlacesProvider.searchPlaces`) and two implementations:
+`src/lib/services/places/` is a small provider abstraction with one interface
+(`PlacesProvider`, with `searchPlaces` + `getPlaceDetails`) and two
+implementations:
 
 - **`mock-provider.ts`** (default, no setup required) — offline, curated
   content for Thailand (Bangkok + Phuket) plus a generic fallback for any
@@ -113,10 +117,50 @@ reason: a raw Google photo URL needs the key attached as a query
 parameter, so the app fetches it server-side and relays the image bytes
 instead of ever putting that URL in front of a client.
 
-If a live search comes back empty for a city (quota, network issue, sparse
-data), the generator transparently fills that one gap from the mock
+If a live search comes back empty for a city, or fails outright (bad key,
+quota, network), the generator transparently fills that one gap from the mock
 provider rather than failing the whole trip — every place still carries its
 own source, so a hybrid itinerary is never misrepresented as fully verified.
+The same fallback applies to the in-app place search, which additionally
+shows the traveller a plain-language notice about what happened.
+
+Provider responses are cached in-process for 10 minutes
+(`places/cache.ts`), so regenerating a similar trip doesn't re-bill the same
+searches. It's a per-process cache, cleared on restart — deliberately not a
+distributed cache.
+
+### What Google Places does and doesn't give us
+
+| Field | Source |
+| --- | --- |
+| Name, address, city/country, coordinates, Google place id | Real, from Google |
+| Rating and review count | Real, from Google (absent for many places) |
+| Website / Google Maps link | Real, from Google |
+| Photos | Real, proxied via `/api/places/photo` |
+| **Cost** | **Derived from Google's coarse `priceLevel` enum, never an exact price.** Always flagged `(est.)` in the UI. |
+| Opening hours, availability, bookability | Not requested, not implied |
+
+Google Places is a source of *place identity and location*, not of travel
+prices. An estimated cost is never presented as a Google price.
+
+## The map
+
+The map is Leaflet via `react-leaflet`, rendering **OpenStreetMap** tiles.
+
+- **No API key.** That's the reason for this choice over the Google Maps
+  JS API: the map has to work in mock mode, where there are no credentials
+  at all. OSM's tile usage policy expects light, attributed use, which suits
+  this app's scale; a production deployment with real traffic should move to
+  a paid tile host (only two constants in `leaflet-map.tsx` would change).
+- **Markers come from the itinerary itself** (`lib/services/map-points.ts`),
+  never a separate dataset — so they reflect the traveller's edits live.
+- **Only real coordinates are plotted.** Demo hotels and generic restaurants
+  have no verifiable position, so they get no pin, and the map says how many
+  places that affects rather than inventing locations to look fuller.
+- **The dashed day line is itinerary order, not a route.** No routing/
+  directions API is involved, and the UI says so.
+- Dark mode dims the tiles rather than inverting them (inverting OSM's light
+  basemap produced an unreadable near-black map).
 
 ## Scripts
 
@@ -185,15 +229,16 @@ src/
       trips/new/                the multi-step create-trip wizard
       trips/[tripId]/           the roadmap / budget / map trip view
     api/trips/generate/         itinerary generation endpoint
+    api/places/search/          server-side place search for the "replace with a real place" picker
     api/places/photo/           server-side proxy for Google Places photos (keeps the API key off the client)
     page.tsx                    landing page
   components/
     landing/                   hero, how-it-works, itinerary + budget previews, features, CTA
     dashboard/                 trip card
     trips/wizard/               wizard shell, steps, generation loader
-    roadmap/                   city section, day view, activity editor/row, hotel editor
+    roadmap/                   city section, day view, activity editor/row, hotel editor, place search
     budget/                    budget panel + chart
-    maps/                      mock map
+    maps/                      trip-map (filters/states) + leaflet-map (the map itself, client-only)
     ui/                        shared primitives (button, input, dialog, tabs, progress, chip…)
     auth-provider.tsx, require-auth.tsx, site-header.tsx, auth-form.tsx  (unchanged from iteration 1)
   lib/
@@ -208,10 +253,13 @@ src/
       trip-mutations.ts          pure add/edit/delete/reorder/hotel-change logic
       itinerary-generator.ts     destination + dates + budget → full itinerary, via the places provider
       budget-engine.ts           itinerary → budget breakdown, over-budget savings suggestions
+      map-points.ts              trip → map markers/filters/day route (pure, unit-tested)
       places/
         provider.ts               the PlacesProvider interface every provider implements
         mock-provider.ts          offline provider backed by lib/mock-data
         google-provider.ts        live provider backed by the Places API (New)
+        cache.ts                  in-process TTL cache so repeat searches aren't re-billed
+        errors.ts                 typed provider failures + user-safe messages
         index.ts                  getPlacesProvider() — picks a provider from env vars
     validation/
       trip.ts                     Zod schemas for trip input and generated itineraries
@@ -235,12 +283,20 @@ read-modify-write instead of a fan-out across subcollections.
   small static/curated decision in `itinerary-generator.ts`, not something
   the places provider decides — only the recommendations *within* a city
   (hotel/attractions/restaurants/nightlife) are provider-driven.
-- The map is a stylized mock, not a real Google Maps embed.
 - Costs are treated as a flat total for the travelling party rather than
   computed per-traveller (except flights, which scale by traveller count).
 - There's no real AI itinerary generation (an LLM deciding the plan) — see
   "Mock mode" above.
 - `google-provider.ts` is implemented against the documented Places API
-  (New) `searchText` shape but has not been exercised against a live API
-  key in this environment; the mock provider is what every automated test
-  and manual QA pass in this repo actually runs against.
+  (New) `searchText`/details shapes and is fully wired up, but has **not been
+  exercised against a live API key** in this environment; the mock provider is
+  what every automated test and manual QA pass in this repo actually runs
+  against. Enabling Google mode is the one step that still needs manual
+  verification against a real key.
+- The map's day line shows itinerary order only. Real walking/driving routes
+  would need a directions API, which this iteration deliberately doesn't add.
+- The API routes under `/api/places/*` and `/api/trips/generate` are not
+  authenticated. Firestore rules still protect all trip *data*, but a
+  determined visitor could call these routes directly and consume Places
+  quota. Gating them would need a server-side Firebase Admin token check,
+  which would be the natural first task of a follow-up iteration.

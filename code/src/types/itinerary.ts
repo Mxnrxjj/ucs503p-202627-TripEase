@@ -41,6 +41,7 @@ export interface Activity {
    * `@/types/place` for what each field means.
    */
   location?: LatLng | null;
+  address?: string | null;
   rating?: Rating | null;
   imageUrl?: string | null;
   source?: SourceRef | null;
@@ -56,6 +57,7 @@ export interface Hotel {
   referenceUrl: string | null;
   isDemoData: boolean;
   location?: LatLng | null;
+  address?: string | null;
   rating?: Rating | null;
   imageUrl?: string | null;
   source?: SourceRef | null;
