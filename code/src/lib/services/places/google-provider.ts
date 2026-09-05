@@ -1,4 +1,5 @@
 import { fromInr } from "@/lib/mock-data/fx";
+import { signPhotoName } from "@/lib/server/photo-signing";
 import {
   googlePlaceDetailsSchema,
   googleTextSearchResponseSchema,
@@ -129,6 +130,15 @@ function inferPlaceArea(raw: GoogleRawPlace): { city: string | null; country: st
     city: find("locality") ?? find("administrative_area_level_2") ?? find("administrative_area_level_1"),
     country: find("country"),
   };
+}
+
+/** A same-origin, signed link into the photo proxy. Null when photos can't be
+ *  served (no key/secret) so the UI simply shows no image. */
+function photoUrl(photoName: string | undefined): string | null {
+  if (!photoName) return null;
+  const signature = signPhotoName(photoName);
+  if (!signature) return null;
+  return `/api/places/photo?name=${encodeURIComponent(photoName)}&sig=${signature}`;
 }
 
 function buildQuery(params: PlaceSearchParams): string {
@@ -285,7 +295,7 @@ export class GooglePlacesProvider implements PlacesProvider {
       address: raw.formattedAddress ?? null,
       city,
       country,
-      imageUrl: raw.photos?.[0] ? `/api/places/photo?name=${encodeURIComponent(raw.photos[0].name)}` : null,
+      imageUrl: photoUrl(raw.photos?.[0]?.name),
       rating: inferRating(raw),
       price: inferPrice(raw, currency, priceMultiplier),
       durationMinutes: null,

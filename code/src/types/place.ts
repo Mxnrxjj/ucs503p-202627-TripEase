@@ -47,8 +47,11 @@ export interface SourceRef {
    * The single home for the provider place id — `Place.id` is the
    * app-namespaced form of the same thing (`google:<providerPlaceId>`), so
    * storing it twice would just invite the two copies to drift apart.
+   *
+   * Optional because trips saved before this field existed simply don't have
+   * it; providers always populate it.
    */
-  providerPlaceId: string | null;
+  providerPlaceId?: string | null;
   /** A real, working URL (e.g. a Wikipedia article or Google Maps place page). Never fabricated. */
   sourceUrl: string | null;
   /** Human-readable label for the source, e.g. "Wikipedia" or "Google Places". */

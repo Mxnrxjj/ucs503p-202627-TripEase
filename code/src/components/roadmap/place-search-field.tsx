@@ -3,6 +3,7 @@
 import { Loader2, MapPin, Search, Star } from "lucide-react";
 import { useState } from "react";
 import { Badge, Button, Input } from "@/components/ui";
+import { ApiError, postAuthenticated } from "@/lib/api-client";
 import { cn, formatMoney } from "@/lib/utils";
 import type { Place, PlaceType } from "@/types/place";
 
@@ -42,17 +43,18 @@ export function PlaceSearchField({
     setError(null);
     setNotice(null);
     try {
-      const response = await fetch("/api/places/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: trimmed, destination, country: country ?? undefined, type, currency }),
-      });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? "Search failed.");
+      const body = await postAuthenticated<{ places?: Place[]; notice?: string | null }>(
+        "/api/places/search",
+        { query: trimmed, destination, country: country ?? undefined, type, currency },
+      );
       setResults(body.places ?? []);
       setNotice(body.notice ?? null);
-    } catch {
-      setError("Couldn't search for places right now. You can still type a name yourself.");
+    } catch (err) {
+      setError(
+        err instanceof ApiError && err.status === 401
+          ? err.message
+          : "Couldn't search for places right now. You can still type a name yourself.",
+      );
       setResults(null);
     } finally {
       setLoading(false);

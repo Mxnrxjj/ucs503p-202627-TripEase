@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authErrorResponse, requireUser } from "@/lib/server/firebase-auth";
 import { getMockPlacesProvider, getPlacesProvider, placesProviderStatus } from "@/lib/services/places";
 import { friendlyPlacesMessage, PlacesProviderError } from "@/lib/services/places/errors";
 import { placeSearchRequestSchema, placeSchema } from "@/lib/validation/places";
@@ -13,6 +14,13 @@ import type { Place } from "@/types/place";
  * browser. Components call this route; they never touch a provider directly.
  */
 export async function POST(request: NextRequest) {
+  // Authenticated: every call here can hit a paid Places search.
+  try {
+    await requireUser(request);
+  } catch (error) {
+    return authErrorResponse(error);
+  }
+
   let body: unknown;
   try {
     body = await request.json();

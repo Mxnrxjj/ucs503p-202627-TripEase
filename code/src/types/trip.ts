@@ -1,5 +1,6 @@
 import type { BudgetBreakdown } from "./budget";
 import type { City, TravelerType, TravelStyle, TripDay } from "./itinerary";
+import type { CityPlan } from "./planning";
 
 export type TripStatus = "generating" | "ready";
 
@@ -31,6 +32,13 @@ export interface Trip {
   days: TripDay[];
 
   budget: BudgetBreakdown;
+
+  /**
+   * How this trip's cities were chosen. Optional so trips saved before the
+   * planner existed still load; absent simply means "planned by an earlier
+   * version of TripEase".
+   */
+  planning?: CityPlan | null;
 
   createdAt: Date;
   updatedAt: Date;

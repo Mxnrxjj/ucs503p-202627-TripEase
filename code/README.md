@@ -78,6 +78,108 @@ npm run dev                  # http://localhost:3000
 See `.env.example`. Only the six `NEXT_PUBLIC_FIREBASE_*` values are required.
 Trip generation needs no API key by default — see "Places data provider" below.
 
+## How a trip gets planned
+
+```
+trip input → AI city planner → Zod → TripEase validation → places provider
+          → itinerary → budget engine → roadmap + map
+```
+
+Each layer has one job, and none of them trusts the one above it:
+
+- **The AI proposes.** Given a destination, length, budget and preferences it
+  returns *only* a structured city allocation — "Rome 4 days, Florence 3,
+  Naples 2" — never itinerary prose, never prices, never place facts.
+- **TripEase validates.** Zod checks the shape; then deterministic checks
+  (`services/planning/validate.ts`) confirm the plan is actually possible:
+  days summing to the trip length, no duplicate cities, a sane number of
+  stops. An allocation that adds up to 11 days for a 9-day trip is rejected
+  even though it's perfectly well-formed JSON.
+- **Google supplies the facts.** Real places for whichever cities survived.
+- **The budget engine is authoritative.** The AI is told the budget and may
+  reason about it, but it cannot bypass the engine — if the resulting trip
+  runs over, the normal over-budget state and savings suggestions appear.
+
+### When the AI isn't available
+
+`planCities()` tries once, retries once *only* if the failure is something a
+model can fix (malformed JSON, or an allocation that doesn't add up), and
+otherwise falls straight through to the deterministic planner. Quota, auth
+and timeout failures don't get a retry — that just spends money twice.
+
+The fallback keeps the curated multi-city split for curated destinations
+(Thailand → Bangkok + Phuket) and otherwise puts the whole trip in one base
+named after the destination. It deliberately does **not** invent city names:
+earlier iterations split unknown destinations into "*Destination* City" and
+"*Destination* Coast", which read like real places but weren't.
+
+Trips record which planner produced them (`planning.source: "ai" | "fallback"`),
+and the generation screen says so when the fallback was used.
+
+### Enabling the AI planner
+
+```
+AI_PROVIDER=groq
+GROQ_API_KEY=gsk_...
+GROQ_MODEL=openai/gpt-oss-120b
+```
+
+Server-only, never `NEXT_PUBLIC_`. `AI_PROVIDER=mock` runs a deterministic
+stand-in with no network or key; leaving it unset uses the deterministic
+planner directly.
+
+Providers live behind one interface (`lib/services/ai/provider.ts`) and are
+chosen in `getAIProvider()`. The city planner depends on `AIProvider` and
+knows nothing about any vendor, so adding OpenAI later is a new class plus a
+branch — `services/planning` doesn't change.
+
+Where the model supports it, output is constrained with
+`response_format: json_schema` (strict), so the model emits the planner's
+exact structure rather than prose. Models that reject a schema fall back to
+plain JSON mode automatically; the result is validated identically either way.
+
+### Editing which cities you visit
+
+The roadmap's **Edit cities** dialog adds, removes, renames and re-times
+cities. It rebalances days automatically so they keep summing to the trip
+length, and runs the *same* `validateCityAllocation` the AI's output must
+pass — hand edits get no more trust than a model's. The server re-validates
+before rebuilding.
+
+Cities you keep hold on to their existing activities: only new or renamed
+cities (and extra days added to an existing one) cost a fresh places lookup,
+so editing the city list doesn't discard the rest of your work.
+
+## API security
+
+Every route that spends external quota requires a Firebase ID token:
+
+| Route | Protection |
+| --- | --- |
+| `/api/trips/plan` | Bearer ID token → 401 without one |
+| `/api/trips/generate` | Bearer ID token → 401 without one |
+| `/api/trips/rebuild` | Bearer ID token → 401 without one |
+| `/api/places/search` | Bearer ID token → 401 without one |
+| `/api/places/photo` | HMAC-signed URL → 403 without a valid signature |
+
+The browser attaches the token via `lib/api-client.ts`; the server verifies
+it in `lib/server/firebase-auth.ts`.
+
+**Why not the Firebase Admin SDK?** Firebase ID tokens are ordinary RS256
+JWTs signed by Google, so they're verified here against Google's published
+public keys using `jose`. That needs *no* server secret at all (the project
+id it checks is already public), where the Admin SDK would mean provisioning
+and storing a service-account private key — a second long-lived credential to
+protect. The tradeoff is real and worth knowing: without the Admin SDK we
+can't detect a **revoked** token, so a signed-out account's token stays usable
+until it expires (up to an hour). For "stop strangers spending our Places and
+LLM quota" that's fine; anything needing instant revocation should move to the
+Admin SDK.
+
+`/api/places/photo` can't use a bearer token because browsers don't send
+headers for `<img src>`, so the server signs each photo reference it issues
+and rejects unsigned ones.
+
 ## Places data provider
 
 `src/lib/services/places/` is a small provider abstraction with one interface
@@ -251,7 +353,17 @@ src/
       auth.ts                    the ONLY place Firebase Auth is touched (unchanged)
       trips.ts                   the ONLY place Firestore trip docs are touched
       trip-mutations.ts          pure add/edit/delete/reorder/hotel-change logic
-      itinerary-generator.ts     destination + dates + budget → full itinerary, via the places provider
+      itinerary-generator.ts     validated city plan → full itinerary, via the places provider
+      ai/
+        provider.ts               the AIProvider interface + shared planner prompt
+        groq-provider.ts          Groq, with JSON-schema-constrained output
+        mock-provider.ts          deterministic stand-in (tests, AI_PROVIDER=mock)
+        index.ts                  getAIProvider() — picks a provider from env vars
+      planning/
+        index.ts                  planCities() — AI, then validation, then fallback
+        fallback-planner.ts       deterministic planner; never invents city names
+        validate.ts               TripEase's own constraint checks on an allocation
+        split-days.ts             shared day-allocation maths
       budget-engine.ts           itinerary → budget breakdown, over-budget savings suggestions
       map-points.ts              trip → map markers/filters/day route (pure, unit-tested)
       places/
@@ -277,12 +389,13 @@ read-modify-write instead of a fan-out across subcollections.
 
 ## Known limitations
 
-- Cities can't be added or removed from a generated trip yet (hotel, day
-  schedule and activities within existing cities are fully editable).
-- Which cities a trip visits (and how many days each gets) is still a
-  small static/curated decision in `itinerary-generator.ts`, not something
-  the places provider decides — only the recommendations *within* a city
-  (hotel/attractions/restaurants/nightlife) are provider-driven.
+- Travel time between cities isn't modelled. The planner is told to treat
+  each transfer as a cost (and the deterministic planner won't put a city
+  below two days), but there's no real routing or travel-time engine yet.
+- Without an AI key, non-curated destinations get a single base city rather
+  than a multi-city route. That's the honest fallback, not a bug — but it
+  does mean the AI planner is what makes the app genuinely multi-country.
+- Token revocation isn't detected (see "API security" above).
 - Costs are treated as a flat total for the travelling party rather than
   computed per-traveller (except flights, which scale by traveller count).
 - There's no real AI itinerary generation (an LLM deciding the plan) — see

@@ -2,8 +2,9 @@
 
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Map as MapIcon } from "lucide-react";
+import { ArrowLeft, Map as MapIcon, Pencil } from "lucide-react";
 import { Alert, Button, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
+import { CityManagerDialog } from "@/components/roadmap/city-manager-dialog";
 import { CitySection } from "@/components/roadmap/city-section";
 import { TripHeader } from "@/components/roadmap/trip-header";
 import { BudgetPanel } from "@/components/budget/budget-panel";
@@ -19,10 +20,12 @@ import {
   updateHotel,
 } from "@/lib/services/trip-mutations";
 import type { MapFilter, MapFilterMode } from "@/lib/services/map-points";
+import { postAuthenticated } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import type { Activity, City } from "@/types/itinerary";
 import type { SavingsSuggestion } from "@/types/budget";
-import type { Trip } from "@/types/trip";
+import type { CityAllocation } from "@/types/planning";
+import type { GeneratedItinerary, Trip } from "@/types/trip";
 
 export default function TripPage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = use(params);
@@ -32,6 +35,7 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
   const [mapMode, setMapMode] = useState<MapFilterMode>("all");
   const [mapOpenOnMobile, setMapOpenOnMobile] = useState(false);
+  const [editingCities, setEditingCities] = useState(false);
 
   useEffect(() => {
     return subscribeToTrip(
@@ -157,6 +161,51 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
     if (result) persist(result);
   }
 
+  /**
+   * Applying an edited city list. The rebuild happens server-side (new cities
+   * need a places lookup), then the whole itinerary — cities, days and the
+   * recomputed budget — is persisted in one write, so the roadmap, budget and
+   * map all move together.
+   */
+  async function handleSaveCities(nextCities: CityAllocation[]) {
+    if (!trip) throw new Error("Trip not loaded.");
+
+    const { itinerary } = await postAuthenticated<{ itinerary: GeneratedItinerary }>(
+      "/api/trips/rebuild",
+      {
+        draft: {
+          destination: trip.destination,
+          startDate: trip.startDate,
+          endDate: trip.endDate,
+          budget: trip.budget.total,
+          currency: trip.currency,
+          travelers: trip.travelers,
+          travelerType: trip.travelerType,
+          preferences: trip.preferences,
+        },
+        cities: nextCities,
+        existing: { cities: trip.cities, days: trip.days },
+      },
+    );
+
+    await updateTripItinerary(tripId, {
+      cities: itinerary.cities,
+      days: itinerary.days,
+      budget: itinerary.budget,
+      planning: {
+        destination: trip.destination,
+        cities: nextCities,
+        source: "fallback",
+        plannerVersion: "manual-1",
+        fallbackReason: "Cities edited by the traveller.",
+      },
+    });
+
+    // A selection or open day belonging to a removed city would now dangle.
+    setSelectedPlaceId(null);
+    setExpandedDayId(itinerary.days[0]?.id ?? null);
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <Link
@@ -176,8 +225,17 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
         </TabsList>
 
         <TabsContent value="roadmap" className="mt-6 focus:outline-none">
-          <div className="mb-4 lg:hidden">
-            <Button variant="secondary" size="sm" onClick={() => setMapOpenOnMobile((open) => !open)}>
+          <div className="mb-4 flex items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setEditingCities(true)}>
+              <Pencil className="h-3.5 w-3.5" />
+              Edit cities
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="lg:hidden"
+              onClick={() => setMapOpenOnMobile((open) => !open)}
+            >
               <MapIcon className="h-3.5 w-3.5" />
               {mapOpenOnMobile ? "Hide map" : "Show map"}
             </Button>
@@ -221,6 +279,21 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
           <BudgetPanel budget={trip.budget} suggestions={suggestions} onApplySuggestion={handleApplySuggestion} />
         </TabsContent>
       </Tabs>
+
+      <CityManagerDialog
+        open={editingCities}
+        onOpenChange={setEditingCities}
+        cities={sortedCities.map((c) => ({
+          name: c.name,
+          days: c.dayCount,
+          reason: trip.planning?.cities.find((p) => p.name === c.name)?.reason ?? "",
+        }))}
+        dayCount={trip.dayCount}
+        destination={trip.destination}
+        travelers={trip.travelers}
+        budget={trip.budget.total}
+        onSave={handleSaveCities}
+      />
     </div>
   );
 }

@@ -8,16 +8,18 @@ import type { PlaceSearchParams, PlacesProvider } from "@/lib/services/places/pr
 import { computeBudgetBreakdown } from "@/lib/services/budget-engine";
 import type { Activity, City, Hotel, TripDay } from "@/types/itinerary";
 import type { Place } from "@/types/place";
+import type { CityPlan } from "@/types/planning";
 import type { GeneratedItinerary, TripDraftInput } from "@/types/trip";
 
 /**
- * The itinerary "AI". This is the one place trip content gets generated —
- * components never build itineraries themselves, and never call a places
- * provider directly. As of Iteration 2, every hotel/attraction/restaurant/
- * nightlife recommendation is fetched through `PlacesProvider.searchPlaces`
- * (see `lib/services/places`) rather than read out of hardcoded Thailand
- * data — swapping the mock provider for a live one (Google Places today,
- * anything else later) changes recommendation quality but touches nothing
+ * Turns a validated city plan into a full itinerary. This is the one place
+ * trip content gets generated — components never build itineraries
+ * themselves, and never call a places provider directly. Every
+ * hotel/attraction/restaurant/nightlife recommendation is fetched through
+ * `PlacesProvider.searchPlaces` (see `lib/services/places`) rather than read
+ * out of hardcoded destination data — swapping the mock provider for a live
+ * one (Google Places today, anything else later) changes recommendation
+ * quality but touches nothing
  * in this file's callers. The shape returned here (`GeneratedItinerary`,
  * validated by `@/lib/validation/trip`) is also exactly what a real
  * LLM-backed planner would need to produce, so a future AI-generated
@@ -54,30 +56,6 @@ function makeId(prefix: string): string {
       ? crypto.randomUUID().slice(0, 8)
       : Math.random().toString(36).slice(2, 10);
   return `${prefix}-${rand}`;
-}
-
-function splitDaysAcrossCities(dayCount: number, weights: number[]): number[] {
-  const totalWeight = weights.reduce((a, b) => a + b, 0);
-  const raw = weights.map((w) => (w / totalWeight) * dayCount);
-  const floors = raw.map((r) => Math.max(1, Math.floor(r)));
-  let assigned = floors.reduce((a, b) => a + b, 0);
-  // Distribute any remaining days to the cities with the largest fractional part.
-  const fractional = raw.map((r, i) => ({ i, frac: r - Math.floor(r) }));
-  fractional.sort((a, b) => b.frac - a.frac);
-  let idx = 0;
-  while (assigned < dayCount) {
-    floors[fractional[idx % fractional.length].i] += 1;
-    assigned += 1;
-    idx += 1;
-  }
-  // If rounding overshot the total (small day counts, many cities), trim from the smallest.
-  while (assigned > dayCount) {
-    const maxIdx = floors.indexOf(Math.max(...floors));
-    if (floors[maxIdx] <= 1) break;
-    floors[maxIdx] -= 1;
-    assigned -= 1;
-  }
-  return floors;
 }
 
 /**
@@ -173,22 +151,66 @@ async function fetchCityPlaces(
 ): Promise<CityPlaces> {
   const base = { destination: cityName, country, currency } satisfies Partial<PlaceSearchParams>;
 
-  const [hotels, attractions, breakfast, lunch, dinner, nightlife] = await Promise.all([
+  // One restaurant search per city, not one per meal. Breakfast, lunch and
+  // dinner queries return heavily overlapping results from a live provider
+  // anyway, so three searches bought variety we can get locally — at three
+  // times the quota cost. Four searches per city instead of six.
+  const [hotels, attractions, restaurants, nightlife] = await Promise.all([
     searchWithFallback(provider, { ...base, type: "hotel", limit: 1 }),
     searchWithFallback(provider, { ...base, type: "attraction", preferences, limit: 14 }),
-    searchWithFallback(provider, { ...base, type: "restaurant", mealType: "breakfast", limit: 3 }),
-    searchWithFallback(provider, { ...base, type: "restaurant", mealType: "lunch", limit: 6 }),
-    searchWithFallback(provider, { ...base, type: "restaurant", mealType: "dinner", limit: 6 }),
+    searchWithFallback(provider, { ...base, type: "restaurant", limit: 12 }),
     searchWithFallback(provider, { ...base, type: "nightlife", limit: 4 }),
   ]);
+
+  const meals = partitionRestaurants(restaurants);
 
   return {
     hotel: hotels[0] ?? null,
     attractions: rankByPreference(attractions, preferences),
-    breakfast,
-    lunch,
-    dinner,
+    ...meals,
     nightlife,
+  };
+}
+
+/**
+ * Split one restaurant result set into the three meal pools a day needs.
+ *
+ * Two kinds of result arrive here. Curated mock content is already tagged with
+ * the meals it suits, so those tags are honoured and the demo itinerary comes
+ * out exactly as before. Live results carry no meal semantics — Google doesn't
+ * say whether somewhere is a breakfast place — so rather than inventing that
+ * distinction they're dealt round-robin into three *disjoint* pools. Disjoint
+ * matters: it's what structurally prevents the same restaurant turning up as
+ * breakfast, lunch and dinner on one day.
+ *
+ * A pool that would come out empty falls back to the whole list, so a city
+ * with only one or two known restaurants still gets meals rather than blank
+ * slots. No extra provider requests are made to top the pools up.
+ */
+export function partitionRestaurants(restaurants: Place[]): {
+  breakfast: Place[];
+  lunch: Place[];
+  dinner: Place[];
+} {
+  const meals = ["breakfast", "lunch", "dinner"] as const;
+  const pools: Record<(typeof meals)[number], Place[]> = { breakfast: [], lunch: [], dinner: [] };
+
+  const tagged = restaurants.filter((p) => (p.mealTypes?.length ?? 0) > 0);
+  const untagged = restaurants.filter((p) => (p.mealTypes?.length ?? 0) === 0);
+
+  for (const place of tagged) {
+    for (const meal of meals) {
+      if (place.mealTypes?.includes(meal)) pools[meal].push(place);
+    }
+  }
+  untagged.forEach((place, index) => {
+    pools[meals[index % meals.length]].push(place);
+  });
+
+  return {
+    breakfast: pools.breakfast.length > 0 ? pools.breakfast : restaurants,
+    lunch: pools.lunch.length > 0 ? pools.lunch : restaurants,
+    dinner: pools.dinner.length > 0 ? pools.dinner : restaurants,
   };
 }
 
@@ -250,50 +272,47 @@ function buildDaysForCity(
   return days;
 }
 
-interface CityPlan {
-  name: string;
-  country: string;
-  shareOfTrip: number;
-  imageQuery: string;
-}
-
-/** Which cities to visit — a lightweight, still-static breakdown. Iteration 2 replaces
- *  hardcoded PLACE content with the places service; picking the cities themselves
- *  (a geocoding/region-breakdown concern) is intentionally out of scope for it. */
-function planCities(destination: string, dayCount: number): CityPlan[] {
-  const template = findDestinationTemplate(destination);
-  if (template) {
-    return template.cities.map((c) => ({
-      name: c.name,
-      country: c.country,
-      shareOfTrip: c.shareOfTrip,
-      imageQuery: c.imageQuery,
-    }));
-  }
-  if (dayCount >= 5) {
-    return [
-      { name: `${destination} City`, country: destination, shareOfTrip: 0.55, imageQuery: `${destination} city` },
-      { name: `${destination} Coast`, country: destination, shareOfTrip: 0.45, imageQuery: `${destination} coast` },
-    ];
-  }
-  return [{ name: destination, country: destination, shareOfTrip: 1, imageQuery: `${destination} travel landmark` }];
-}
-
 function flightTierPerTraveler(destination: string): number {
   return findDestinationTemplate(destination)?.flightTierPerTraveler ?? 25_000;
 }
 
-export async function generateItinerary(input: TripDraftInput): Promise<GeneratedItinerary> {
+/** Match a planned city to one already in the trip, by name. Renaming a city
+ *  therefore counts as a different place and correctly gets fresh lookups. */
+function findExistingCity(
+  existing: { cities: City[]; days: TripDay[] } | undefined,
+  name: string,
+): City | null {
+  if (!existing) return null;
+  const wanted = name.trim().toLowerCase();
+  return existing.cities.find((c) => c.name.trim().toLowerCase() === wanted) ?? null;
+}
+
+/**
+ * Build the full itinerary for an already-validated city allocation.
+ *
+ * The city decision arrives from `lib/services/planning` (AI or fallback) and
+ * has already passed Zod plus TripEase's constraint checks by the time it gets
+ * here — this function's job is turning it into real days of real places.
+ * Passing the plan in (rather than deciding here) is what makes the generator
+ * destination-agnostic: it no longer knows or cares that Thailand is special.
+ */
+export async function generateItinerary(
+  input: TripDraftInput,
+  plan: CityPlan,
+  /**
+   * An existing itinerary to salvage from, used when the traveller edits the
+   * city list. A city that's still present keeps its hotel and its already-
+   * edited activities; only genuinely new cities (or extra days added to an
+   * existing one) cost a fresh places lookup. Without this, adding one city
+   * would silently discard every edit made to the others.
+   */
+  existing?: { cities: City[]; days: TripDay[] },
+  /** Injectable for tests; defaults to whatever the environment configures. */
+  provider: PlacesProvider = getPlacesProvider(),
+): Promise<GeneratedItinerary> {
   const dayCount = Math.max(
     1,
     Math.round((new Date(input.endDate).getTime() - new Date(input.startDate).getTime()) / 86_400_000) + 1,
-  );
-
-  const provider = getPlacesProvider();
-  const cityPlans = planCities(input.destination, dayCount);
-  const daysPerCity = splitDaysAcrossCities(
-    dayCount,
-    cityPlans.map((c) => c.shareOfTrip),
   );
 
   const cities: City[] = [];
@@ -301,28 +320,57 @@ export async function generateItinerary(input: TripDraftInput): Promise<Generate
   let cursorDate = input.startDate;
   let dayOffset = 0;
 
-  for (let i = 0; i < cityPlans.length; i++) {
-    const plan = cityPlans[i];
-    const count = daysPerCity[i];
-    const isLast = i === cityPlans.length - 1;
+  for (let i = 0; i < plan.cities.length; i++) {
+    const allocation = plan.cities[i];
+    const count = allocation.days;
+    const isLast = i === plan.cities.length - 1;
     const nights = Math.max(1, isLast ? count - 1 : count);
 
-    const places = await fetchCityPlaces(provider, plan.name, plan.country, input.preferences, input.currency);
-    const hotel = placeToHotel(places.hotel, plan.name, nights, input.currency);
+    // The destination doubles as the country hint for place lookups: searching
+    // "Rome, Italy" is far more precise than searching "Rome".
+    const country = input.destination;
+
+    const previous = findExistingCity(existing, allocation.name);
+    const previousDays = previous ? existing!.days.filter((d) => d.cityId === previous.id) : [];
+    const reusableDays = Math.min(previousDays.length, count);
+    // Only pay for a places lookup when there's something new to fill.
+    const needsPlaces = !previous || reusableDays < count;
+
+    const places = needsPlaces
+      ? await fetchCityPlaces(provider, allocation.name, country, input.preferences, input.currency)
+      : null;
+
+    const hotel = previous
+      ? { ...previous.hotel, nights }
+      : placeToHotel(places!.hotel, allocation.name, nights, input.currency);
 
     const city: City = {
-      id: makeId("city"),
-      name: plan.name,
-      country: plan.country,
+      id: previous?.id ?? makeId("city"),
+      name: allocation.name,
+      country,
       order: i,
       startDate: cursorDate,
       endDate: addDaysIso(cursorDate, count - 1),
       dayCount: count,
       hotel,
-      imageQuery: plan.imageQuery,
+      imageQuery: `${allocation.name} ${country}`,
     };
     cities.push(city);
-    days.push(...buildDaysForCity(city, places, dayOffset, i === 0));
+
+    const freshDays = places ? buildDaysForCity(city, places, dayOffset, i === 0) : [];
+    for (let dayIndex = 0; dayIndex < count; dayIndex++) {
+      const kept = dayIndex < reusableDays ? previousDays[dayIndex] : null;
+      const source = kept ?? freshDays[dayIndex];
+      if (!source) continue;
+      days.push({
+        ...source,
+        // Dates and numbering always come from the new allocation; only the
+        // activities are carried over.
+        cityId: city.id,
+        dayNumber: dayOffset + dayIndex + 1,
+        date: addDaysIso(cursorDate, dayIndex),
+      });
+    }
 
     cursorDate = addDaysIso(cursorDate, count);
     dayOffset += count;

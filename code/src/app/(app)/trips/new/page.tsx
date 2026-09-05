@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { Alert, Button } from "@/components/ui";
-import { GenerationLoader } from "@/components/trips/wizard/generation-loader";
+import { GenerationLoader, type GenerationStage } from "@/components/trips/wizard/generation-loader";
 import {
   BudgetStep,
   DatesStep,
@@ -16,9 +16,11 @@ import {
   type WizardData,
 } from "@/components/trips/wizard/steps";
 import { WizardShell } from "@/components/trips/wizard/wizard-shell";
+import { postAuthenticated } from "@/lib/api-client";
 import { clearDraft, readDraft } from "@/lib/draft-storage";
 import { toDateInputValue } from "@/lib/date";
 import { saveGeneratedTrip } from "@/lib/services/trips";
+import type { CityPlan } from "@/types/planning";
 import type { GeneratedItinerary, TripDraftInput } from "@/types/trip";
 
 function defaultDates() {
@@ -65,6 +67,8 @@ export default function NewTripPage() {
   const [step, setStep] = useState(0);
   const [data, setDataState] = useState<WizardData>(initialData);
   const [phase, setPhase] = useState<"wizard" | "generating">("wizard");
+  const [stage, setStage] = useState<GenerationStage>("planning");
+  const [plan, setPlan] = useState<CityPlan | null>(null);
   const [itinerary, setItinerary] = useState<GeneratedItinerary | null>(null);
   const [fetchDone, setFetchDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +84,8 @@ export default function NewTripPage() {
   async function handleGenerate() {
     setError(null);
     setFetchDone(false);
+    setPlan(null);
+    setStage("planning");
     setPhase("generating");
 
     const draft: TripDraftInput = {
@@ -94,19 +100,26 @@ export default function NewTripPage() {
     };
 
     try {
-      const res = await fetch("/api/trips/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(draft),
-      });
-      const body = await res.json();
-      if (!res.ok) {
-        throw new Error(body.error ?? "Couldn't generate your trip.");
-      }
-
       if (!user) throw new Error("Not signed in.");
-      const tripId = await saveGeneratedTrip(draft, body.itinerary as GeneratedItinerary);
-      setItinerary(body.itinerary);
+
+      // Stage 1 — decide the cities. Surfacing this separately is what lets
+      // the loader show real progress (and the chosen cities) instead of a
+      // made-up percentage.
+      const planned = await postAuthenticated<{ plan: CityPlan }>("/api/trips/plan", draft);
+      setPlan(planned.plan);
+
+      // Stage 2 — real places, itinerary and budget for those cities.
+      setStage("places");
+      const built = await postAuthenticated<{ itinerary: GeneratedItinerary; plan: CityPlan }>(
+        "/api/trips/generate",
+        { ...draft, plan: planned.plan },
+      );
+
+      setStage("saving");
+      const tripId = await saveGeneratedTrip(draft, built.itinerary, built.plan ?? planned.plan);
+
+      setStage("roadmap");
+      setItinerary(built.itinerary);
       setFetchDone(true);
       setTimeout(() => router.push(`/trips/${tripId}`), 600);
     } catch (err) {
@@ -116,7 +129,14 @@ export default function NewTripPage() {
   }
 
   if (phase === "generating") {
-    return <GenerationLoader destination={data.destination} done={fetchDone && itinerary !== null} />;
+    return (
+      <GenerationLoader
+        destination={data.destination}
+        stage={stage}
+        plan={plan}
+        done={fetchDone && itinerary !== null}
+      />
+    );
   }
 
   const isLastStep = step === 5;

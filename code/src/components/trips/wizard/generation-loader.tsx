@@ -2,35 +2,47 @@
 
 import { motion } from "framer-motion";
 import { Check, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui";
 import { cn } from "@/lib/utils";
-
-const STEPS = [
-  "Understanding your preferences",
-  "Planning your destinations",
-  "Optimizing your route",
-  "Finding places to visit",
-  "Estimating accommodation",
-  "Planning activities",
-  "Calculating your budget",
-  "Finalizing your itinerary",
-];
+import type { CityPlan } from "@/types/planning";
 
 /**
- * Purely cosmetic staged progress — the real work (the fetch to
- * /api/trips/generate) happens in parallel in the wizard. `done` flips this
- * over to a "ready" state once that fetch resolves, even if the checklist
- * hasn't finished animating yet.
+ * The generation screen.
+ *
+ * Every line here corresponds to a real step the app is actually performing —
+ * the stage advances when the work does, not on a timer, and there's no
+ * invented percentage. When the planner has chosen cities they're shown
+ * immediately, which is both a genuine progress signal and the most
+ * interesting thing to look at while the places lookups run.
  */
-export function GenerationLoader({ destination, done }: { destination: string; done: boolean }) {
-  const [activeIndex, setActiveIndex] = useState(0);
+export type GenerationStage = "planning" | "places" | "saving" | "roadmap";
 
-  useEffect(() => {
-    if (activeIndex >= STEPS.length - 1) return;
-    const delay = done ? 120 : 550 + Math.random() * 350;
-    const timer = setTimeout(() => setActiveIndex((i) => i + 1), delay);
-    return () => clearTimeout(timer);
-  }, [activeIndex, done]);
+/**
+ * Four stages, because there are exactly four real boundaries in the work:
+ * the plan request, the generate request, the Firestore write, and the
+ * navigation. Splitting "finding places" from "building your itinerary" would
+ * look nicer but they're one server call — showing them as separate steps
+ * would be inventing progress, which is the thing this screen must not do.
+ */
+const STAGES: { id: GenerationStage; label: string }[] = [
+  { id: "planning", label: "Planning your cities" },
+  { id: "places", label: "Finding real places and building your itinerary" },
+  { id: "saving", label: "Checking your budget and saving your trip" },
+  { id: "roadmap", label: "Preparing your roadmap" },
+];
+
+export function GenerationLoader({
+  destination,
+  stage,
+  plan,
+  done,
+}: {
+  destination: string;
+  stage: GenerationStage;
+  plan: CityPlan | null;
+  done: boolean;
+}) {
+  const activeIndex = STAGES.findIndex((s) => s.id === stage);
 
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-8 py-16 text-center">
@@ -50,15 +62,10 @@ export function GenerationLoader({ destination, done }: { destination: string; d
       </div>
 
       <ul className="flex w-full flex-col gap-3 text-left">
-        {STEPS.map((label, i) => {
-          const state = i < activeIndex ? "done" : i === activeIndex ? "active" : "pending";
+        {STAGES.map((s, i) => {
+          const state = done || i < activeIndex ? "done" : i === activeIndex ? "active" : "pending";
           return (
-            <motion.li
-              key={label}
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: state === "pending" ? 0.4 : 1, x: 0 }}
-              className="flex items-center gap-3 text-sm"
-            >
+            <li key={s.id} className="flex items-center gap-3 text-sm">
               <span
                 className={cn(
                   "flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
@@ -75,17 +82,50 @@ export function GenerationLoader({ destination, done }: { destination: string; d
               </span>
               <span
                 className={cn(
-                  state === "done" && "text-zinc-500 line-through decoration-zinc-300",
+                  state === "done" && "text-zinc-500",
                   state === "active" && "font-medium text-zinc-900 dark:text-zinc-100",
                   state === "pending" && "text-zinc-400",
                 )}
               >
-                {label}
+                {s.label}
               </span>
-            </motion.li>
+            </li>
           );
         })}
       </ul>
+
+      {plan ? (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full rounded-2xl border border-zinc-200 p-4 text-left dark:border-zinc-800"
+        >
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Your route</p>
+            {plan.source === "fallback" ? (
+              <Badge tone="amber">TripEase planner</Badge>
+            ) : (
+              <Badge tone="orange">AI planned</Badge>
+            )}
+          </div>
+          <ul className="flex flex-col gap-1.5">
+            {plan.cities.map((city) => (
+              <li key={city.name} className="flex items-baseline justify-between gap-3 text-sm">
+                <span className="font-medium text-zinc-900 dark:text-zinc-100">{city.name}</span>
+                <span className="text-xs text-zinc-500">
+                  {city.days} {city.days === 1 ? "day" : "days"}
+                  {city.reason ? ` · ${city.reason}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {plan.source === "fallback" ? (
+            <p className="mt-3 text-xs text-zinc-500">
+              AI planning is unavailable right now, so TripEase planned this route itself.
+            </p>
+          ) : null}
+        </motion.div>
+      ) : null}
     </div>
   );
 }

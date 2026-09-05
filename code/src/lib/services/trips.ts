@@ -20,6 +20,7 @@ import { auth, db } from "@/lib/firebase";
 import { COLLECTIONS } from "@/lib/collections";
 import type { BudgetBreakdown } from "@/types/budget";
 import type { City, TripDay } from "@/types/itinerary";
+import type { CityPlan } from "@/types/planning";
 import type { GeneratedItinerary, Trip, TripDraftInput } from "@/types/trip";
 
 /**
@@ -56,6 +57,7 @@ const tripConverter: FirestoreDataConverter<Trip> = {
       cities: (data.cities ?? []) as City[],
       days: (data.days ?? []) as TripDay[],
       budget: data.budget as BudgetBreakdown,
+      planning: (data.planning ?? null) as CityPlan | null,
       createdAt: tsToDate(data.createdAt),
       updatedAt: tsToDate(data.updatedAt),
     };
@@ -77,6 +79,7 @@ function requireUid(): string {
 export async function saveGeneratedTrip(
   draft: TripDraftInput,
   itinerary: GeneratedItinerary,
+  planning?: CityPlan | null,
 ): Promise<string> {
   const uid = requireUid();
   const ref = doc(collection(db, COLLECTIONS.trips));
@@ -95,6 +98,8 @@ export async function saveGeneratedTrip(
     cities: itinerary.cities,
     days: itinerary.days,
     budget: itinerary.budget,
+    // Only the structured decision — never prompts or raw model output.
+    planning: planning ?? null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -167,7 +172,7 @@ export function deleteTrip(tripId: string): Promise<void> {
  */
 export function updateTripItinerary(
   tripId: string,
-  patch: { cities?: City[]; days?: TripDay[]; budget?: BudgetBreakdown },
+  patch: { cities?: City[]; days?: TripDay[]; budget?: BudgetBreakdown; planning?: CityPlan },
 ): Promise<void> {
   return updateDoc(doc(db, COLLECTIONS.trips, tripId), {
     ...patch,
