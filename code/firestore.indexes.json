@@ -7,14 +7,6 @@
         { "fieldPath": "ownerId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
-    },
-    {
-      "collectionGroup": "itineraryItems",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "dayIndex", "order": "ASCENDING" },
-        { "fieldPath": "position", "order": "ASCENDING" }
-      ]
     }
   ],
   "fieldOverrides": []

@@ -19,9 +19,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     <div className="flex flex-1 flex-col items-center justify-center px-4 py-12">
       <Link
         href="/"
-        className="mb-8 text-xl font-semibold tracking-tight"
+        className="font-display mb-8 text-xl font-semibold tracking-tight"
       >
-        Trip<span className="text-sky-700">Ease</span>
+        Trip<span className="text-orange-600">Ease</span>
       </Link>
       <div className="w-full max-w-sm">{children}</div>
     </div>

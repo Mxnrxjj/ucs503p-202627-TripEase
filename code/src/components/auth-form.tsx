@@ -10,6 +10,11 @@ import {
   signUpWithEmail,
 } from "@/lib/services/auth";
 import { Alert, Button, Card, TextField } from "@/components/ui";
+import { readDraft } from "@/lib/draft-storage";
+
+function postSignInDestination(): string {
+  return readDraft() ? "/trips/new" : "/dashboard";
+}
 
 type Mode = "sign-in" | "sign-up";
 
@@ -50,7 +55,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       } else {
         await signInWithEmail(email, password);
       }
-      router.replace("/dashboard");
+      router.replace(postSignInDestination());
     } catch (err) {
       setError(authErrorMessage(err));
       setBusy(null);
@@ -62,7 +67,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
     setBusy("google");
     try {
       await signInWithGoogle();
-      router.replace("/dashboard");
+      router.replace(postSignInDestination());
     } catch (err) {
       setError(authErrorMessage(err));
       setBusy(null);
@@ -131,7 +136,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
       <p className="mt-5 text-center text-sm text-zinc-500">
         {t.alt}{" "}
-        <Link href={t.altHref} className="font-medium text-sky-700 hover:underline">
+        <Link href={t.altHref} className="font-medium text-orange-600 hover:underline">
           {t.altLabel}
         </Link>
       </p>

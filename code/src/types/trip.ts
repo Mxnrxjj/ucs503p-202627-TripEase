@@ -1,53 +1,62 @@
-export type ExpenseCategory =
-  | "accommodation"
-  | "transport"
-  | "food"
-  | "activities"
-  | "misc";
+import type { BudgetBreakdown } from "./budget";
+import type { City, TravelerType, TravelStyle, TripDay } from "./itinerary";
 
-export interface CapturedPlace {
-  placeId: string;
-  label: string;
-  lat: number;
-  lng: number;
-}
+export type TripStatus = "generating" | "ready";
 
+/**
+ * A trip is stored as a single Firestore document. Iteration 1 modelled a
+ * trip as a flat list of places; V1 replaces that with the richer
+ * city/day/activity structure the roadmap and budget views need. At this
+ * scale (a handful of cities, a couple of dozen activities) the whole trip
+ * comfortably fits well under Firestore's 1MiB document limit, so denormalizing
+ * everything into one document keeps reads and edits a single round trip.
+ */
 export interface Trip {
   id: string;
   ownerId: string;
+  status: TripStatus;
+
+  destination: string;
   title: string;
-  destination: CapturedPlace;
-  startDate: Date;
-  endDate: Date;
+  startDate: string;
+  endDate: string;
   dayCount: number;
-  travellers: number;
+
   currency: string;
-  places: CapturedPlace[];
-  budget: Partial<Record<ExpenseCategory, number>>;
-  totals: { plannedTotal: number; spentTotal: number };
-  share: { enabled: boolean; token: string | null };
+  travelers: number;
+  travelerType: TravelerType;
+  preferences: TravelStyle[];
+
+  cities: City[];
+  days: TripDay[];
+
+  budget: BudgetBreakdown;
+
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface ItineraryItem {
-  id: string;
-  placeId: string;
-  label: string;
-  lat: number;
-  lng: number;
-  dayIndex: number;
-  position: number;
-  plannedTime: string | null;
-  note: string | null;
+/** The subset of a trip decided in the create-trip wizard, before generation. */
+export interface TripDraftInput {
+  destination: string;
+  startDate: string;
+  endDate: string;
+  budget: number;
+  currency: string;
+  travelers: number;
+  travelerType: TravelerType;
+  preferences: TravelStyle[];
 }
 
-export interface Expense {
-  id: string;
-  category: ExpenseCategory;
-  amount: number;
+/** What the itinerary generator produces; validated, then persisted as a Trip. */
+export interface GeneratedItinerary {
+  destination: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  dayCount: number;
   currency: string;
-  incurredOn: Date;
-  note: string | null;
-  createdBy: string;
+  cities: City[];
+  days: TripDay[];
+  budget: BudgetBreakdown;
 }
