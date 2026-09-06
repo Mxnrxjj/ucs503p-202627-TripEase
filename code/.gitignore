@@ -52,3 +52,6 @@ ui-debug.log*
 # template artefact). Our data-access layer lives in src/lib, so re-include it.
 !/src/lib/
 !/src/lib/**
+
+ 
+.claude/

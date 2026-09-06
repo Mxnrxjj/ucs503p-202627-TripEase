@@ -10,6 +10,7 @@ import { TripHeader } from "@/components/roadmap/trip-header";
 import { BudgetPanel } from "@/components/budget/budget-panel";
 import { TripMap } from "@/components/maps/trip-map";
 import { buildSavingsSuggestions } from "@/lib/services/budget-engine";
+import { analyzeTrip } from "@/lib/services/feasibility";
 import { subscribeToTrip, updateTripItinerary } from "@/lib/services/trips";
 import {
   addActivity,
@@ -55,6 +56,10 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
     () => (trip ? buildSavingsSuggestions(trip.cities, trip.days, trip.budget) : []),
     [trip],
   );
+
+  // Travel and feasibility are derived, not stored — so they're recomputed
+  // here after every edit, and trips saved before this existed analyse fine.
+  const feasibility = useMemo(() => (trip ? analyzeTrip(trip) : null), [trip]);
 
   /**
    * Selecting a place from the map has to reveal it in the roadmap: expand
@@ -261,6 +266,7 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
                   days={trip.days.filter((d) => d.cityId === city.id).sort((a, b) => a.dayNumber - b.dayNumber)}
                   currency={trip.currency}
                   expandedDayId={expandedDayId}
+                  dayPlans={feasibility?.days}
                   selectedPlaceId={selectedPlaceId}
                   onSelectPlace={handleSelectPlace}
                   onToggleDay={(dayId) => setExpandedDayId((cur) => (cur === dayId ? null : dayId))}

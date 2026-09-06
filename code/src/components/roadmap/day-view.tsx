@@ -3,10 +3,13 @@
 import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Button } from "@/components/ui";
 import { formatDateLong, formatMoney } from "@/lib/utils";
 import type { Activity, TripDay } from "@/types/itinerary";
+import type { DayPlan } from "@/types/travel";
+import { DayTimeSummary, FeasibilityNotes } from "./feasibility-notes";
+import { TravelSegmentRow } from "./travel-segment-row";
 import {
   ActivityEditorDialog,
   activityFromForm,
@@ -30,6 +33,7 @@ export function DayView({
   cityName,
   cityCountry,
   currency,
+  plan,
   selectedPlaceId,
   onSelectPlace,
   onAddActivity,
@@ -41,6 +45,8 @@ export function DayView({
   cityName: string;
   cityCountry?: string | null;
   currency: string;
+  /** Derived travel + feasibility for this day. Absent until analysis runs. */
+  plan?: DayPlan | null;
   selectedPlaceId?: string | null;
   onSelectPlace?: (id: string | null) => void;
   onAddActivity: (activity: Activity) => void;
@@ -53,6 +59,18 @@ export function DayView({
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   const dayTotal = day.activities.reduce((sum, a) => sum + a.estimatedCost, 0);
+
+  // A city transfer is shown as travel, not as somewhere you visit, so it's
+  // lifted out of the activity list rather than sitting in it as a card.
+  const visibleActivities = day.activities.filter((a) => a.category !== "transport");
+  const cityTransfer = plan?.segments.find((s) => s.type === "city-transfer") ?? null;
+  const arrivalSegments = new Map(
+    (plan?.segments ?? [])
+      .filter((s) => s.type === "local-transfer" && s.toPlaceId && !s.toPlaceId.startsWith("hotel:"))
+      .map((s) => [s.toPlaceId as string, s]),
+  );
+  const returnSegment =
+    plan?.segments.find((s) => s.type === "local-transfer" && s.toPlaceId?.startsWith("hotel:")) ?? null;
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -74,34 +92,46 @@ export function DayView({
             Day {day.dayNumber} · {cityName}
           </h3>
           <p className="text-xs text-zinc-500">{formatDateLong(day.date)}</p>
+          {plan ? <DayTimeSummary feasibility={plan.feasibility} /> : null}
         </div>
         <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
           {formatMoney(dayTotal, currency)} planned
         </span>
       </div>
 
-      {day.activities.length === 0 ? (
+      {cityTransfer ? <ul className="mb-1 flex flex-col"><TravelSegmentRow segment={cityTransfer} /></ul> : null}
+
+      {visibleActivities.length === 0 ? (
         <p className="py-6 text-center text-sm text-zinc-400">No activities yet — add the first one.</p>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={day.activities.map((a) => a.id)} strategy={verticalListSortingStrategy}>
+          {/* Only activities are sortable; travel segments are derived from
+              where the activities are, so they re-compute after a drag. */}
+          <SortableContext items={visibleActivities.map((a) => a.id)} strategy={verticalListSortingStrategy}>
             <ul className="flex flex-col">
-              {day.activities.map((activity) => (
-                <ActivityRow
-                  key={activity.id}
-                  activity={activity}
-                  selected={selectedPlaceId === activity.id}
-                  onSelect={() =>
-                    onSelectPlace?.(selectedPlaceId === activity.id ? null : activity.id)
-                  }
-                  onEdit={() => setEditing(activity)}
-                  onDelete={() => onDeleteActivity(activity.id)}
-                />
+              {visibleActivities.map((activity) => (
+                <Fragment key={activity.id}>
+                  {arrivalSegments.get(activity.id) ? (
+                    <TravelSegmentRow segment={arrivalSegments.get(activity.id)!} />
+                  ) : null}
+                  <ActivityRow
+                    activity={activity}
+                    selected={selectedPlaceId === activity.id}
+                    onSelect={() =>
+                      onSelectPlace?.(selectedPlaceId === activity.id ? null : activity.id)
+                    }
+                    onEdit={() => setEditing(activity)}
+                    onDelete={() => onDeleteActivity(activity.id)}
+                  />
+                </Fragment>
               ))}
+              {returnSegment ? <TravelSegmentRow segment={returnSegment} /> : null}
             </ul>
           </SortableContext>
         </DndContext>
       )}
+
+      {plan ? <FeasibilityNotes feasibility={plan.feasibility} /> : null}
 
       <div className="mt-2">
         <Button variant="ghost" size="sm" onClick={() => setAdding(true)}>

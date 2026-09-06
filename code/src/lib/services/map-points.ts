@@ -115,6 +115,32 @@ export function routeForDay(points: MapPoint[], dayId: string | null): MapPoint[
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
+/**
+ * The city-to-city hops, as straight lines between city anchors.
+ *
+ * Drawn distinctly from a day's local order line, and explicitly not a route:
+ * no routing provider is involved, so this is "Bangkok connects to Phuket",
+ * not "here is how you drive there".
+ */
+export function cityTransferLines(points: MapPoint[], cities: { id: string; order: number }[]): MapPoint[][] {
+  const ordered = [...cities].sort((a, b) => a.order - b.order);
+  const anchorByCity = new Map<string, MapPoint>();
+
+  for (const point of points) {
+    // Prefer the hotel as a city's anchor; otherwise its first mapped stop.
+    if (point.kind === "hotel") anchorByCity.set(point.cityId, point);
+    else if (!anchorByCity.has(point.cityId)) anchorByCity.set(point.cityId, point);
+  }
+
+  const lines: MapPoint[][] = [];
+  for (let i = 1; i < ordered.length; i++) {
+    const from = anchorByCity.get(ordered[i - 1].id);
+    const to = anchorByCity.get(ordered[i].id);
+    if (from && to) lines.push([from, to]);
+  }
+  return lines;
+}
+
 /** How many itinerary entries couldn't be mapped, so the UI can say so honestly. */
 export function countUnmappablePlaces(trip: Trip): number {
   const missingHotels = trip.cities.filter((c) => !c.hotel.location).length;

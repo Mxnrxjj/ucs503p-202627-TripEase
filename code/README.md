@@ -31,6 +31,11 @@ Tell TripEase where you want to go → it plans it → you explore it → edit i
   centres on it, click a marker and the roadmap opens that day and highlights
   it. Filters follow the roadmap (whole trip / current city / current day),
   and a day's stops are joined in itinerary order.
+- **Feasibility checking** — every day is measured against the clock: time at
+  places, plus estimated travel between them, plus a realistic buffer. Days
+  that can't physically happen are flagged, city-to-city transfers appear as
+  their own step with a mode and a duration, and travel figures are always
+  labelled as estimates (see "Feasibility, distance and travel time").
 - **Firebase Authentication** — email/password and Google sign-in.
 - **Firestore persistence** — trips are private to their owner and enforced
   by security rules that are unit-tested in CI.
@@ -264,6 +269,60 @@ The map is Leaflet via `react-leaflet`, rendering **OpenStreetMap** tiles.
 - Dark mode dims the tiles rather than inverting them (inverting OSM's light
   basemap produced an unreadable near-black map).
 
+## Feasibility, distance and travel time
+
+A plausible-looking itinerary can still be impossible: two sights on opposite
+sides of a city in the same afternoon, an island day trip squeezed in beside
+three meals, or a beach in Phuket scheduled inside a Bangkok day. The
+feasibility engine (`lib/services/feasibility/`) is the deterministic half of
+planning — the part that asks whether the plan can physically happen.
+
+**Travel times here are estimates, not routes.** Nothing in the app calls a
+routing or directions API. Distances are great-circle (Haversine) with a road
+detour factor applied, and durations come from distance bands with a
+door-to-door speed and a fixed overhead — the overhead is what stops a 690 km
+flight being reported as 59 minutes. Every figure is flagged `isEstimated` and
+every string the UI renders says "estimated". If a real routing provider is
+ever configured, `TravelTimeProvider` in `travel-time.ts` is the one seam that
+changes; the engine and the UI stay as they are.
+
+What the engine does:
+
+- **Distance** (`geo.ts`) — Haversine between two points, returning `null`
+  rather than a number whenever either end has no coordinates. `(0, 0)` is
+  treated as missing, because it is nearly always a provider default rather
+  than a spot in the Gulf of Guinea.
+- **Travel time** (`travel-time.ts`) — walk / car / train / flight chosen by
+  distance, separately for hops inside a city and transfers between cities.
+- **Durations** (`durations.ts`) — a provider-supplied duration when there is
+  one, otherwise a mid-range default per activity category. A model is never
+  asked to invent one. Opening hours are modelled but always report
+  `"unknown"` today, since the Places integration doesn't request that
+  (billable) field group — and missing hours are explicitly not an error.
+- **Day feasibility** (`engine.ts`) — a day is time at places, plus travel
+  between them, plus a buffer for getting in and queueing, measured against a
+  09:00–21:00 window. Over-capacity days are flagged red, tight ones amber,
+  and long-travel and missing-location notes are shown as-is.
+- **City transfers** (`engine.ts`) — a city change is a planning event in its
+  own right: it appears as its own segment on the arrival day, with mode,
+  distance and duration. Its cost is read from the transport activity the
+  generator already booked, so the budget is never charged twice.
+- **Ordering and clustering** (`ordering.ts`) — a day's stops are visited
+  nearest-neighbour from the hotel, and a city's sights are grouped
+  geographically so one day is the old town and another is the coast.
+
+**Nothing here is persisted.** The whole analysis is derived from the saved
+trip on every render, which means trips saved before this engine existed work
+untouched (no migration), and an edit re-evaluates for free. It also costs no
+API calls — it is arithmetic over data already in memory.
+
+The itinerary generator uses the same arithmetic *while building* a day, so it
+can't emit a day the engine then flags red: each candidate stop is accepted
+only if the day still fits with dinner held in reserve, and only if it doesn't
+overlap something already booked. That's why an eight-hour island trip
+displaces the day's second museum and its lunch reservation instead of being
+stacked on top of them.
+
 ## Scripts
 
 | Command              | What it does                                              |
@@ -312,10 +371,9 @@ app works offline aside from Firebase:
   anything without a verifiable source carries no link and is tagged
   **"Demo data"** in the UI. Nothing is ever presented as a verified fact
   it isn't.
-- **Map view** (`src/components/maps/mock-map.tsx`) draws a CSS-based route
-  between cities and stops. It's marked "Demo map" in the UI and is
-  structured so a real Google Maps/Directions integration can replace its
-  internals without changing the roadmap page around it.
+- **Map view** is a real Leaflet/OpenStreetMap map either way — it needs no
+  credentials — but in mock mode only the places that carry genuine
+  coordinates get a pin (see "The map").
 - **Budget numbers** are computed from whatever the places provider
   returned (see `src/lib/services/budget-engine.ts`) — realistic in shape,
   not live/bookable prices, even when the underlying places are real.
@@ -338,7 +396,8 @@ src/
     landing/                   hero, how-it-works, itinerary + budget previews, features, CTA
     dashboard/                 trip card
     trips/wizard/               wizard shell, steps, generation loader
-    roadmap/                   city section, day view, activity editor/row, hotel editor, place search
+    roadmap/                   city section, day view, activity editor/row, hotel editor, place search,
+                               travel-segment row + feasibility notes
     budget/                    budget panel + chart
     maps/                      trip-map (filters/states) + leaflet-map (the map itself, client-only)
     ui/                        shared primitives (button, input, dialog, tabs, progress, chip…)
@@ -366,6 +425,13 @@ src/
         split-days.ts             shared day-allocation maths
       budget-engine.ts           itinerary → budget breakdown, over-budget savings suggestions
       map-points.ts              trip → map markers/filters/day route (pure, unit-tested)
+      feasibility/
+        geo.ts                    Haversine distance + centroid; null rather than a guess
+        travel-time.ts            TravelTimeProvider + the heuristic (no routing API)
+        durations.ts              how long an activity takes; opening-hours seam
+        engine.ts                 day segments, day feasibility, whole-trip analysis
+        ordering.ts               nearest-neighbour day routes, geographic day clustering
+        index.ts                  barrel export
       places/
         provider.ts               the PlacesProvider interface every provider implements
         mock-provider.ts          offline provider backed by lib/mock-data
@@ -389,9 +455,23 @@ read-modify-write instead of a fan-out across subcollections.
 
 ## Known limitations
 
-- Travel time between cities isn't modelled. The planner is told to treat
-  each transfer as a cost (and the deterministic planner won't put a city
-  below two days), but there's no real routing or travel-time engine yet.
+- **Travel times are estimated, never routed.** No routing or directions API
+  is called anywhere in the app. Distances are great-circle with a detour
+  factor, and durations come from distance bands with a fixed door-to-door
+  overhead — good enough to tell a walk from a flight and to catch an
+  impossible day, but not a substitute for a real route. See "Feasibility,
+  distance and travel time".
+- Opening hours aren't fetched (a separate, billable Places field group), so
+  the feasibility engine can't tell you a museum is shut on the day you've
+  planned it. The check exists and reports `"unknown"`; turning hours on is a
+  provider change, not an engine change.
+- Transfer costs are transparent arithmetic (a floor plus a distance
+  component, by mode), not quoted fares. They're labelled as estimates
+  everywhere they appear.
+- A day's travel is only counted between places that actually have
+  coordinates. Demo hotels and generic restaurants have none, so a mock-mode
+  trip under-counts its own travel; the day says how many places that
+  affects rather than inventing positions.
 - Without an AI key, non-curated destinations get a single base city rather
   than a multi-city route. That's the honest fallback, not a bug — but it
   does mean the AI planner is what makes the app genuinely multi-country.
@@ -406,10 +486,5 @@ read-modify-write instead of a fan-out across subcollections.
   what every automated test and manual QA pass in this repo actually runs
   against. Enabling Google mode is the one step that still needs manual
   verification against a real key.
-- The map's day line shows itinerary order only. Real walking/driving routes
-  would need a directions API, which this iteration deliberately doesn't add.
-- The API routes under `/api/places/*` and `/api/trips/generate` are not
-  authenticated. Firestore rules still protect all trip *data*, but a
-  determined visitor could call these routes directly and consume Places
-  quota. Gating them would need a server-side Firebase Admin token check,
-  which would be the natural first task of a follow-up iteration.
+- The map's day line shows itinerary order only, and the city-transfer line is
+  a straight connection between two cities — neither is a driving route.

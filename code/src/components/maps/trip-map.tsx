@@ -6,6 +6,7 @@ import { useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import {
   buildMapPoints,
+  cityTransferLines,
   countUnmappablePlaces,
   filterMapPoints,
   routeForDay,
@@ -53,6 +54,11 @@ export function TripMap({
     [points, filter],
   );
   const unmappable = useMemo(() => countUnmappablePlaces(trip), [trip]);
+  // Only meaningful when more than one city is in view.
+  const transferLines = useMemo(
+    () => (filter.mode === "all" ? cityTransferLines(points, trip.cities) : []),
+    [points, trip.cities, filter.mode],
+  );
 
   const activeCity = trip.cities.find((c) => c.id === filter.cityId) ?? null;
   const activeDay = trip.days.find((d) => d.id === filter.dayId) ?? null;
@@ -99,6 +105,7 @@ export function TripMap({
           <LeafletMap
             points={points}
             routePoints={route}
+            transferLines={transferLines}
             selectedId={selectedId}
             onSelect={onSelect}
             fitKey={`${filter.mode}:${filter.cityId ?? ""}:${filter.dayId ?? ""}`}

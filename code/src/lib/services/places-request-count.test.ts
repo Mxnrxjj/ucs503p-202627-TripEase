@@ -75,13 +75,19 @@ describe("Places requests per trip", () => {
     expect(restaurantCalls.every((c) => c.mealType === undefined)).toBe(true);
   });
 
-  it("still fills all three meal slots for every day", async () => {
+  it("still fills the day's meal slots from the single search", async () => {
     const provider = new CountingProvider();
     const itinerary = await generateItinerary(draft, threeCityPlan, undefined, provider);
 
     for (const day of itinerary.days) {
       const food = day.activities.filter((a) => a.category === "food");
-      expect(food.length).toBeGreaterThanOrEqual(3);
+      // Two, not three: since the feasibility engine started sizing days, a
+      // full-day excursion or a long transfer legitimately displaces one meal
+      // rather than being scheduled on top of it. Lunch and dinner always
+      // survive; breakfast is the one that gives way.
+      expect(food.length).toBeGreaterThanOrEqual(2);
+      // Dinner in particular is never displaced — the generator reserves it.
+      expect(food.some((a) => a.time === "20:00")).toBe(true);
       // And no restaurant is reused within a single day.
       const names = food.map((a) => a.name);
       expect(new Set(names).size).toBe(names.length);

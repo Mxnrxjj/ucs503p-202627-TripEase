@@ -1,11 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BedDouble, ChevronDown, Pencil, Star } from "lucide-react";
+import { AlertTriangle, BedDouble, ChevronDown, Pencil, Star } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui";
 import { cn, formatDateShort, formatMoney } from "@/lib/utils";
 import type { Activity, City, TripDay } from "@/types/itinerary";
+import type { DayPlan } from "@/types/travel";
 import { DayView } from "./day-view";
 import { HotelEditorDialog } from "./hotel-editor-dialog";
 
@@ -14,6 +15,7 @@ export function CitySection({
   days,
   currency,
   expandedDayId,
+  dayPlans,
   selectedPlaceId,
   onSelectPlace,
   onToggleDay,
@@ -27,6 +29,8 @@ export function CitySection({
   days: TripDay[];
   currency: string;
   expandedDayId: string | null;
+  /** Derived travel/feasibility per day id. */
+  dayPlans?: Record<string, DayPlan>;
   selectedPlaceId?: string | null;
   onSelectPlace?: (id: string | null) => void;
   onToggleDay: (dayId: string) => void;
@@ -109,6 +113,15 @@ export function CitySection({
                   <span className="font-medium text-zinc-900 dark:text-zinc-100">Day {day.dayNumber}</span>
                   <span className="ml-2 text-sm text-zinc-500">{formatDateShort(day.date)}</span>
                 </span>
+                {dayPlans?.[day.id]?.segments.some((s) => s.type === "city-transfer") ? (
+                  <Badge tone="orange">Transfer</Badge>
+                ) : null}
+                {dayPlans?.[day.id]?.feasibility.feasible === false ? (
+                  <AlertTriangle
+                    className="h-3.5 w-3.5 shrink-0 text-red-500"
+                    aria-label="This day may be too full"
+                  />
+                ) : null}
                 {dayTotal > 0 ? (
                   <Badge tone="neutral">{formatMoney(dayTotal, currency)}</Badge>
                 ) : null}
@@ -130,6 +143,7 @@ export function CitySection({
                       cityName={city.name}
                       cityCountry={city.country}
                       currency={currency}
+                      plan={dayPlans?.[day.id] ?? null}
                       selectedPlaceId={selectedPlaceId}
                       onSelectPlace={onSelectPlace}
                       onAddActivity={(a) => onAddActivity(day.id, a)}

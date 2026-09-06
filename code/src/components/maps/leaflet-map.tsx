@@ -189,12 +189,14 @@ function FocusSelected({ points, selectedId }: { points: MapPoint[]; selectedId:
 export default function LeafletMap({
   points,
   routePoints,
+  transferLines = [],
   selectedId,
   onSelect,
   fitKey,
 }: {
   points: MapPoint[];
   routePoints: MapPoint[];
+  transferLines?: MapPoint[][];
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   fitKey: string;
@@ -221,6 +223,16 @@ export default function LeafletMap({
       style={{ background: dark ? "#18181b" : "#f4f4f5" }}
     >
       <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} />
+
+      {/* City-to-city hops: long, straight, and visually unlike a day's order
+          line — these are connections, not routes. */}
+      {transferLines.map((line, index) => (
+        <Polyline
+          key={`transfer-${index}`}
+          positions={line.map((p) => [p.location.lat, p.location.lng] as [number, number])}
+          pathOptions={{ color: "#0ea5e9", weight: 2, opacity: 0.5, dashArray: "2 10" }}
+        />
+      ))}
 
       {routeLine.length > 1 ? (
         <Polyline positions={routeLine} pathOptions={{ color: "#ea580c", weight: 3, opacity: 0.6, dashArray: "6 8" }} />
