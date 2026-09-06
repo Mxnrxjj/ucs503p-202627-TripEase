@@ -20,7 +20,7 @@ import {
   updateActivity,
   updateHotel,
 } from "@/lib/services/trip-mutations";
-import type { MapFilter, MapFilterMode } from "@/lib/services/map-points";
+import { roadmapElementId, type MapFilter, type MapFilterMode } from "@/lib/services/map-points";
 import { postAuthenticated } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import type { Activity, City } from "@/types/itinerary";
@@ -82,9 +82,7 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
 
   useEffect(() => {
     if (!selectedPlaceId) return;
-    const elementId = selectedPlaceId.startsWith("hotel:")
-      ? `hotel-${selectedPlaceId.slice("hotel:".length)}`
-      : `activity-${selectedPlaceId}`;
+    const elementId = roadmapElementId(selectedPlaceId);
     // One frame for the newly-expanded day to mount before we measure it.
     const timer = window.setTimeout(() => {
       document.getElementById(elementId)?.scrollIntoView({ behavior: "smooth", block: "nearest" });

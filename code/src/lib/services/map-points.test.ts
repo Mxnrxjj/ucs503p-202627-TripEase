@@ -3,6 +3,7 @@ import {
   buildMapPoints,
   countUnmappablePlaces,
   filterMapPoints,
+  roadmapElementId,
   routeForDay,
 } from "@/lib/services/map-points";
 import type { Activity, City, Hotel, TripDay } from "@/types/itinerary";
@@ -148,6 +149,77 @@ describe("buildMapPoints", () => {
     expect(points.find((p) => p.id === "a1")?.order).toBe(1);
     // a2 is skipped for the map but still occupies position 2 in the day.
     expect(points.find((p) => p.id === "a3")?.order).toBe(3);
+  });
+});
+
+/**
+ * The marker detail card is built entirely from these fields, so a marker
+ * click never costs a Places request. That only holds if they're copied from
+ * the itinerary rather than filled in — which is what these pin down.
+ */
+describe("the fields a marker card reads", () => {
+  it("carries the activity's own schedule, rating and reference", () => {
+    const trip = makeTrip();
+    trip.days[0].activities[0] = activity({
+      id: "a1",
+      name: "Wat Arun",
+      time: "10:30",
+      durationMinutes: 90,
+      location: { lat: 13.7437, lng: 100.4889 },
+      rating: { value: 4.6, count: 1200 },
+      address: "158 Thanon Wang Doem",
+      referenceUrl: "https://maps.google.com/?cid=1",
+      source: { provider: "google", sourceUrl: "https://maps.google.com/?cid=1", sourceName: "Google Maps" },
+      priceIsEstimate: false,
+    });
+
+    const mapped = buildMapPoints(trip).find((p) => p.id === "a1")!;
+    expect(mapped.time).toBe("10:30");
+    expect(mapped.durationMinutes).toBe(90);
+    expect(mapped.rating).toEqual({ value: 4.6, count: 1200 });
+    expect(mapped.address).toBe("158 Thanon Wang Doem");
+    expect(mapped.referenceUrl).toBe("https://maps.google.com/?cid=1");
+    expect(mapped.sourceName).toBe("Google Maps");
+    expect(mapped.priceIsEstimate).toBe(false);
+  });
+
+  it("leaves every card field empty when the itinerary has nothing to put there", () => {
+    // The fixture's activities carry only the bare minimum, exactly like a
+    // trip saved before places data existed.
+    const mapped = buildMapPoints(makeTrip()).find((p) => p.id === "a1")!;
+    expect(mapped.rating).toBeNull();
+    expect(mapped.address).toBeNull();
+    expect(mapped.referenceUrl).toBeNull();
+    expect(mapped.sourceName).toBeNull();
+    // Absent price provenance means "assume estimate", never "verified".
+    expect(mapped.priceIsEstimate).toBe(true);
+  });
+
+  it("treats a zero duration as no duration rather than as zero minutes", () => {
+    const trip = makeTrip();
+    trip.days[0].activities[0] = activity({
+      id: "a1",
+      durationMinutes: 0,
+      location: { lat: 13.75, lng: 100.49 },
+    });
+    expect(buildMapPoints(trip).find((p) => p.id === "a1")!.durationMinutes).toBeNull();
+  });
+
+  it("gives a hotel no day or scheduled time, because it has none", () => {
+    const hotelPoint = buildMapPoints(makeTrip()).find((p) => p.id === "hotel:city-a")!;
+    expect(hotelPoint.time).toBeNull();
+    expect(hotelPoint.durationMinutes).toBeNull();
+    expect(hotelPoint.dayNumber).toBeNull();
+  });
+});
+
+describe("roadmapElementId", () => {
+  it("addresses an activity row", () => {
+    expect(roadmapElementId("act-123")).toBe("activity-act-123");
+  });
+
+  it("addresses a city's hotel row", () => {
+    expect(roadmapElementId("hotel:city-a")).toBe("hotel-city-a");
   });
 });
 

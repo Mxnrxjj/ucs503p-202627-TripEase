@@ -116,6 +116,53 @@ body {
   color: #d4d4d8;
 }
 
+/*
+ * The marker detail card is a TripEase component with its own surface, border
+ * and shadow, so Leaflet's popup bubble is stripped back to a positioner.
+ * Without this the card would sit inside a second white box with its own
+ * padding and drop shadow.
+ */
+.tripease-popup .leaflet-popup-content-wrapper {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 1rem;
+}
+
+.tripease-popup .leaflet-popup-content {
+  margin: 0;
+  width: auto !important;
+  line-height: inherit;
+}
+
+/* Leaflet's little pointer tail assumes the bubble's white fill. */
+.tripease-popup .leaflet-popup-tip-container {
+  display: none;
+}
+
+/*
+ * On the short map panel used at mobile widths, a card for a place with a
+ * rating, a price and a two-line address can be taller than the map itself —
+ * so it covers the whole thing and still gets clipped at the bottom. Capping
+ * it keeps some map in view and makes the overflow scrollable rather than
+ * lost. Leaflet already stops scroll propagation inside popup content, so
+ * this doesn't drag the map.
+ */
+@media (max-width: 1023px) {
+  .tripease-popup .leaflet-popup-content {
+    max-height: 220px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* Focus has to stay visible on a marker: it is the keyboard affordance. */
+.tripease-marker:focus-visible {
+  outline: 2px solid #ea580c;
+  outline-offset: 3px;
+  border-radius: 9999px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in,
   .animate-scale-in,

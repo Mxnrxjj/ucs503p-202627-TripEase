@@ -19,9 +19,10 @@ import type { Trip } from "@/types/trip";
  * loading/empty states, and the "which points are visible" logic.
  *
  * The Leaflet layer is loaded with `ssr: false` because it touches `window`
- * on import. Points come from the live trip via `buildMapPoints`, never from
- * a separate hardcoded dataset, so the map always reflects the itinerary the
- * traveller is actually looking at — including their edits.
+ * on import, which also keeps it out of every page that has no map. Points
+ * come from the live trip via `buildMapPoints`, never from a separate
+ * hardcoded dataset, so the map always reflects the itinerary the traveller
+ * is actually looking at — including their edits.
  */
 const LeafletMap = dynamic(() => import("./leaflet-map"), {
   ssr: false,

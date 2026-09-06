@@ -1,5 +1,5 @@
 import type { ActivityCategory } from "@/types/itinerary";
-import { verificationOf, type LatLng, type PlaceVerification } from "@/types/place";
+import { verificationOf, type LatLng, type PlaceVerification, type Rating } from "@/types/place";
 import type { Trip } from "@/types/trip";
 
 /**
@@ -35,6 +35,24 @@ export interface MapPoint {
   verification: PlaceVerification;
   /** 1-based position within its day, used for the marker label and route order. */
   order: number | null;
+
+  /**
+   * Everything below is carried purely so a marker's detail card can be shown
+   * without asking a provider anything. It is copied from the activity or
+   * hotel the point came from — nothing here is looked up, derived or filled
+   * in when the trip doesn't have it.
+   */
+  /** Scheduled clock time, e.g. "10:30". Hotels have none. */
+  time: string | null;
+  durationMinutes: number | null;
+  rating: Rating | null;
+  /** False only when the provider gave a verified price. */
+  priceIsEstimate: boolean;
+  address: string | null;
+  /** A real, provider-supplied URL — never constructed. */
+  referenceUrl: string | null;
+  /** What that URL is, e.g. "Google Maps" or "Wikipedia". */
+  sourceName: string | null;
 }
 
 export function buildMapPoints(trip: Trip): MapPoint[] {
@@ -57,6 +75,13 @@ export function buildMapPoints(trip: Trip): MapPoint[] {
         currency: city.hotel.currency,
         verification: verificationOf(city.hotel),
         order: null,
+        time: null,
+        durationMinutes: null,
+        rating: city.hotel.rating ?? null,
+        priceIsEstimate: city.hotel.priceIsEstimate !== false,
+        address: city.hotel.address ?? null,
+        referenceUrl: city.hotel.referenceUrl,
+        sourceName: city.hotel.source?.sourceName ?? null,
       });
     }
   }
@@ -79,6 +104,13 @@ export function buildMapPoints(trip: Trip): MapPoint[] {
         currency: activity.currency,
         verification: verificationOf(activity),
         order: index + 1,
+        time: activity.time,
+        durationMinutes: activity.durationMinutes > 0 ? activity.durationMinutes : null,
+        rating: activity.rating ?? null,
+        priceIsEstimate: activity.priceIsEstimate !== false,
+        address: activity.address ?? null,
+        referenceUrl: activity.referenceUrl,
+        sourceName: activity.source?.sourceName ?? null,
       });
     });
   }
@@ -139,6 +171,19 @@ export function cityTransferLines(points: MapPoint[], cities: { id: string; orde
     if (from && to) lines.push([from, to]);
   }
   return lines;
+}
+
+/**
+ * The DOM id of the roadmap row a map point corresponds to.
+ *
+ * The roadmap and the map identify a place by the same key (`MapPoint.id`),
+ * and both need to turn it into an element id to scroll to. Keeping that
+ * convention in one place stops the two drifting apart.
+ */
+export function roadmapElementId(pointId: string): string {
+  return pointId.startsWith("hotel:")
+    ? `hotel-${pointId.slice("hotel:".length)}`
+    : `activity-${pointId}`;
 }
 
 /** How many itinerary entries couldn't be mapped, so the UI can say so honestly. */
