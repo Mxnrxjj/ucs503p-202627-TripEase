@@ -1,0 +1,14 @@
+digraph G { rankdir=TB; fontname="Helvetica"; edge [fontname="Helvetica", fontsize=9]; node [fontname="Helvetica", fontsize=11, shape=box, style="rounded,filled", fillcolor="#f4f4f5"];
+labelloc=t; label="TripEase Architecture";
+browser [label="Browser (Next.js client)\nReact components, Tailwind, Leaflet map\nfeasibility + budget recalculated on edits", fillcolor="#fde7d3"];
+routes [label="Next.js API routes (server)\n/api/trips/plan, generate, rebuild\n/api/places/search, photo\nFirebase ID token verified on every call", fillcolor="#fde7d3"];
+svc [label="Service layer (shared)\nplanning: AI -> validate -> fallback\nitinerary generator, budget engine,\nfeasibility engine, places providers"];
+fb [label="Firebase\nAuthentication + Cloud Firestore\n(Security Rules = authorization)", fillcolor="#e6f0ff"];
+ext [label="External services\nGroq (LLM), Google Places", fillcolor="#e6f0ff"];
+osm [label="OpenStreetMap tiles", fillcolor="#e6f0ff"];
+browser -> fb [label=" sign-in; read/write own trips"];
+browser -> routes [label=" plan / generate / search"];
+routes -> svc; browser -> svc [style=dotted, label=" edits"];
+svc -> ext [style=dashed, label=" keys stay on server"];
+browser -> osm [style=dashed, label=" tiles (no key)"];
+}

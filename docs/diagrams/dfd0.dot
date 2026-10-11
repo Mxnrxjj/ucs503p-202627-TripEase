@@ -1,0 +1,27 @@
+digraph DFD0 {
+  rankdir=LR; nodesep=0.6; ranksep=1.3;
+  fontname="Helvetica"; labelloc=t; label="DFD Level 0 (Context Diagram) - TripEase";
+  node [fontname="Helvetica", fontsize=11]; edge [fontname="Helvetica", fontsize=9];
+
+  // External entities: rounded rectangles
+  node [shape=box, style="rounded", width=1.6, height=0.7];
+  user   [label="Traveller"];
+  auth   [label="Firebase\nAuthentication"];
+  places [label="Google Places"];
+  ai     [label="Groq AI"];
+  osm    [label="OpenStreetMap\nTile Server"];
+
+  // Process: circle
+  sys [shape=circle, style=filled, fillcolor="#fde7d3", label="0\nTripEase\nSystem", width=1.7, fixedsize=true];
+
+  user -> sys   [label="credentials, trip details,\nedits, place searches"];
+  sys  -> user  [label="session, itinerary, map,\nbudget, warnings"];
+  sys  -> auth  [label="credentials"];
+  auth -> sys   [label="ID token"];
+  sys  -> places [label="place search,\nphoto request"];
+  places -> sys [label="places, coordinates,\nratings, photos"];
+  sys  -> ai    [label="city planning request"];
+  ai   -> sys   [label="suggested day split"];
+  sys  -> osm   [label="tile request"];
+  osm  -> sys   [label="map tiles"];
+}
