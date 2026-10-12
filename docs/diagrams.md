@@ -1,6 +1,6 @@
 # TripEase Diagrams
 
-The `.dot` source of each diagram is kept next to its image in `docs/diagrams/`. To regenerate an image after editing a source file, run `dot -Tpng <name>.dot -o <name>.png` (Graphviz). The ER and use case diagrams are laid out with `neato` instead, and their commands are on the [Data Model](data-model.md) and [Use Cases](use-cases.md) pages.
+The `.dot` source of each diagram is kept next to its image in `docs/diagrams/`. To regenerate an image after editing a source file, run `dot -Tpng <name>.dot -o <name>.png` (Graphviz). The ER, use case and activity diagrams are laid out with `neato` instead, and their commands are on the [Data Model](data-model.md), [Use Cases](use-cases.md) and [Activity Diagram](activity-diagram.md) pages.
 
 ## DFD Level 0 (Context Diagram)
 
@@ -36,3 +36,7 @@ The ER diagram is on its own page, [Data Model](data-model.md). It has the entit
 ## Use Case Diagram
 
 The use case diagram is on its own page, [Use Cases](use-cases.md). It has the actors, the relationships between use cases and a description of each use case in the course template.
+
+## Activity Diagram
+
+The activity diagram of the Create a trip use case is on its own page, [Activity Diagram](activity-diagram.md). It shows the steps from the wizard to the saved trip, including the AI retry and the fallback planner, with swimlanes for the traveller, TripEase and the external services.
