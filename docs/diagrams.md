@@ -1,6 +1,6 @@
 # TripEase Diagrams
 
-The `.dot` source of each diagram is kept next to its image in `docs/diagrams/`. To regenerate an image after editing a source file, run `dot -Tpng <name>.dot -o <name>.png` (Graphviz). The ER diagram is laid out with `neato` instead, and its commands are on the [Data Model](data-model.md) page.
+The `.dot` source of each diagram is kept next to its image in `docs/diagrams/`. To regenerate an image after editing a source file, run `dot -Tpng <name>.dot -o <name>.png` (Graphviz). The ER and use case diagrams are laid out with `neato` instead, and their commands are on the [Data Model](data-model.md) and [Use Cases](use-cases.md) pages.
 
 ## DFD Level 0 (Context Diagram)
 
@@ -32,3 +32,7 @@ When no Google Places or Groq key is configured, the system uses built-in demo p
 ## ER Diagram
 
 The ER diagram is on its own page, [Data Model](data-model.md). It has the entities, relationships and attributes, and a note on how a trip is stored in Firestore.
+
+## Use Case Diagram
+
+The use case diagram is on its own page, [Use Cases](use-cases.md). It has the actors, the relationships between use cases and a description of each use case in the course template.
