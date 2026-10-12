@@ -1,45 +1,100 @@
-# UCS503P Project Template
+# TripEase
 
-This is a project template for UCS503P Project (2026-27
-ODD). 
+TripEase is a web application for planning a trip in one place. Normally a group's plan is spread across a chat, a notes app, a maps app and a spreadsheet, and nobody knows which copy is the latest. In TripEase a trip is a single record that holds the itinerary, the places on a map and the budget together, and all of them update when the traveller edits the plan.
 
-There are 3 reports in LaTeX format, namely *a*)
-Project Proposal, *b*) Project Report Prototype Stage,
-and *c*) Project Report Final -- each in their
-respective folders.
+This is the project for UCS503P (Software Engineering), 2026-27 odd semester, at Thapar Institute of Engineering and Technology, Patiala.
 
-Journals are stacked under the folder `journals`, one
-folder for each team member.  A sample entry has been
-made for example.
+## Team
 
-The source code is contained within the folder `code`.
+| Name | Roll No. |
+|---|---|
+| Manraj Singh | 1024030712 |
+| Vatsal Chauhan | 1024030714 |
+| Nimitt Malhotra | 1024030709 |
 
-The documentation is under folder `docs`.
+## Project status
 
-All other aspects of code organisation are left to the
-discretion of the user(s).
+The project is at the mid-semester stage. The working prototype covers the following.
 
+**Done**
 
-## Docs
+- Sign-up and sign-in with email and password, or with a Google account.
+- A new-trip wizard (destination, dates, budget, travellers, preferences) and a dashboard that lists, renames and deletes a user's trips.
+- City planning with an AI provider (Groq). The answer is validated by our own checks, and a deterministic planner takes over if the AI is unavailable or its answer is not usable.
+- Day-by-day itinerary generation with hotels, meals and activities, using Google Places data or built-in demo data.
+- An editable roadmap: add, edit, remove, replace and reorder activities and hotels, and add or remove cities.
+- A map of the itinerary (Leaflet with OpenStreetMap tiles) with markers, a route for each day and filters by city and day.
+- Feasibility checks that estimate travel time between stops and warn about days that are too full.
+- A budget broken down by category that updates after every edit, with suggestions for saving money when the trip goes over budget.
+- Firestore security rules so that a trip can be read and changed only by its owner, with automated tests for the rules.
+- Continuous integration that runs lint, unit tests, the rules tests and a production build on every push.
 
-As of now, the `docs` is just an organised collection
-of markdown (`md`) files.  But the build procedure is
-using [`mkdocs`](https://google.com/search?q=mkdocs)
-backend.  As a result, any commit into the `master`
-branch of github repository would result in CI/CD based
-build and deployment of the documentation including the
-journals.
+**Planned for the final submission**
 
-For a local DEV-version of the docs for viewing and
-testing, install the local env and issue the following
-command:
+- Expense logging and a planned-versus-actual view.
+- A read-only link for sharing a trip.
+- Automatic deployment to a staging environment.
+- A pilot study to measure the time taken to complete an itinerary, the success metric defined in the proposal.
 
-``` shell
-make docs
-```
-
-### Local `env` for `docs`
-
-``` shell
+## How a trip is planned
 
 ```
+trip details -> city planner (AI, then validation, or fallback) -> places provider
+             -> itinerary -> feasibility checks -> budget engine -> roadmap and map
+```
+
+The AI is only used to suggest how many days to spend in each city. Everything else, such as place details, travel times and the budget, is produced and checked by TripEase's own code. When no keys are configured, the app uses built-in demo providers and still works end to end.
+
+## Technology
+
+- Next.js (App Router), React and TypeScript
+- Tailwind CSS, Radix UI, Framer Motion, dnd-kit and Recharts
+- Firebase Authentication and Cloud Firestore, with no separate backend server
+- Next.js API routes for server-side work, so that API keys stay on the server
+- Leaflet and OpenStreetMap for the map
+- Zod for validating input and generated data
+- Vitest for tests and GitHub Actions for continuous integration
+
+## Repository layout
+
+| Folder | Contents |
+|---|---|
+| `code/` | The TripEase application |
+| `docs/` | Project documentation, including the data flow and architecture diagrams (`docs/diagrams.md`) |
+| `journals/` | Weekly journals of each team member |
+| `project-proposal/` | The project proposal (LaTeX source and PDF) |
+| `project-report-final/` | Reserved for the final report |
+
+## Running the application locally
+
+You need Node.js 22 or newer. Java 17 or newer is needed only for the Firestore rules tests.
+
+```bash
+cd code
+npm install
+cp .env.example .env.local     # then fill in the Firebase web configuration
+npm run dev                    # http://localhost:3000
+```
+
+Only the six `NEXT_PUBLIC_FIREBASE_*` values in `.env.local` are required. Places data and AI planning use built-in demo providers unless you set `PLACES_PROVIDER=google` with a Google Places key, or `AI_PROVIDER=groq` with a Groq key. These keys are read only on the server and must never be given a `NEXT_PUBLIC_` prefix. The full setup, including creating the Firebase project, is described in [`code/README.md`](code/README.md).
+
+## Tests
+
+Run these from the `code/` folder.
+
+```bash
+npm run lint          # lint
+npm test              # unit tests
+npm run test:rules    # Firestore security rules tests (needs Java)
+npm run build         # production build
+```
+
+The same four steps run automatically on every push through GitHub Actions.
+
+## Documentation
+
+The documentation is built with MkDocs and published automatically when changes are merged into `main`. To preview it locally, install the MkDocs packages listed in `.github/workflows/mkdocs.yml` and run `mkdocs serve` from the repository root.
+
+## Workflow
+
+Work is done on separate branches and merged into `main` through pull requests, after the team has reviewed the changes.
