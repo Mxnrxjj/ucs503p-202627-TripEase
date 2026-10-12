@@ -19,21 +19,21 @@ The project is at the mid-semester stage. The working prototype covers the follo
 **Done**
 
 - Sign-up and sign-in with email and password, or with a Google account.
-- A new-trip wizard (destination, dates, budget, travellers, preferences) and a dashboard that lists, renames and deletes a user's trips.
+- A new-trip wizard (destination, dates, budget, travellers, preferences) and a dashboard that lists and deletes a user's trips (a trip is renamed from its own page).
 - City planning with an AI provider (Groq). The answer is validated by our own checks, and a deterministic planner takes over if the AI is unavailable or its answer is not usable.
 - Day-by-day itinerary generation with hotels, meals and activities, using Google Places data or built-in demo data.
-- An editable roadmap: add, edit, remove, replace and reorder activities and hotels, and add or remove cities.
-- A map of the itinerary (Leaflet with OpenStreetMap tiles) with markers, a route for each day and filters by city and day.
+- An editable roadmap: add, edit, remove, replace and reorder activities, change a city's hotel, and add, remove or rename cities.
+- A map of the itinerary (Leaflet with OpenStreetMap tiles) with markers, a line joining each day's stops in order, and filters by city and day.
 - Feasibility checks that estimate travel time between stops and warn about days that are too full.
 - A budget broken down by category that updates after every edit, with suggestions for saving money when the trip goes over budget.
 - Firestore security rules so that a trip can be read and changed only by its owner, with automated tests for the rules.
 - Continuous integration that runs lint, unit tests, the rules tests and a production build on every push.
+- Automatic deployment on Vercel whenever changes are merged into `main`.
 
 **Planned for the final submission**
 
 - Expense logging and a planned-versus-actual view.
 - A read-only link for sharing a trip.
-- Automatic deployment to a staging environment.
 - A pilot study to measure the time taken to complete an itinerary, the success metric defined in the proposal.
 
 ## How a trip is planned
@@ -67,7 +67,7 @@ The AI is only used to suggest how many days to spend in each city. Everything e
 
 ## Running the application locally
 
-You need Node.js 22 or newer. Java 17 or newer is needed only for the Firestore rules tests.
+You need Node.js 22 or newer. Java is needed only for the Firestore rules tests (the CI uses Java 21).
 
 ```bash
 cd code
@@ -97,4 +97,4 @@ The documentation is built with MkDocs and published automatically when changes 
 
 ## Workflow
 
-Work is done on separate branches and merged into `main` through pull requests, after the team has reviewed the changes.
+Each iteration is developed on its own branch, for example `iteration4-ai-city-planner`, and merged into `main` once it works. Documentation changes are made through pull requests.
