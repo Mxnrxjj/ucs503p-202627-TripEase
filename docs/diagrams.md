@@ -12,7 +12,7 @@ TripEase is shown as a single process with its external entities: the traveller,
 
 Notation: a circle is a process, a rounded rectangle is an external entity, and a name between two parallel lines is a data store.
 
-- **1.0 Authenticate User:** the traveller signs in through Firebase Authentication, which returns an ID token. API routes verify this token on every request.
+- **1.0 Authenticate User:** the traveller signs in through Firebase Authentication, which returns an ID token. The API routes for planning, generation, rebuilding and place search verify this token on every request. The photo route uses signed links instead, because an image request cannot carry the token.
 - **2.0 Plan Cities:** Groq AI suggests how many days to spend in each city. The suggestion is validated, and a deterministic fallback planner is used if it is missing or invalid.
 - **3.0 Generate Itinerary:** places are fetched from Google Places and arranged into days. Feasibility checks decide whether an activity fits in a day, and the budget is calculated. It also rebuilds the itinerary when the city list is edited.
 - **4.0 Manage Trip:** saves the trip record to D1 and handles edits, renaming, deletion and replacing a place (which searches Google Places). The budget is recalculated after every edit.
