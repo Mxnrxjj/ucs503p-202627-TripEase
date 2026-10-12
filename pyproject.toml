@@ -4,16 +4,14 @@ requires = ["hatchling","hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
-name = "tiet-ucs503.github.io/ucs503p-202627odd-template"
+name = "tripease"
 version = "0.0.1"
 authors = [
-  { name="Raghav B. Venkataramaiyer", email="bv.raghav@thapar.edu" },
+  { name="Nimitt Malhotra" },
+  { name="Manraj Singh" },
+  { name="Vatsal Chauhan" },
 ]
-# maintainers = [
-#   { name="Raghav B. Venkataramaiyer",
-#     email="bvraghav@gmail.com" },
-# ]
-description = "UCS503 : Software Engineering : Project Sample"
+description = "TripEase: an integrated trip planning and itinerary management system (UCS503 project)"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
@@ -30,8 +28,8 @@ classifiers = [
 dependencies = ["click"]
 
 [project.urls]
-Homepage = "https://github.com/tiet-ucs503/ucs503p-202627odd-template"
-Issues = "https://github.com/tiet-unc512/ucs503p-202627odd-template/issues"
+Homepage = "https://github.com/Mxnrxjj/ucs503p-202627-TripEase"
+Issues = "https://github.com/Mxnrxjj/ucs503p-202627-TripEase/issues"
 
 # Adapted from https://stackoverflow.com/a/50156706
 [tool.pytest.ini_options]
