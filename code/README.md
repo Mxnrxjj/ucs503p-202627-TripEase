@@ -340,7 +340,8 @@ emulators` in a second terminal.
 
 ## Deployment
 
-Merges to `master` deploy to a staging environment on **Vercel**.
+The app is hosted on **Vercel**. Automatic deployment of `main` to a staging
+environment is planned for the final submission.
 
 - Vercel project **Root Directory** is set to `code/`.
 - The six `NEXT_PUBLIC_FIREBASE_*` variables are configured in the Vercel
@@ -478,7 +479,9 @@ read-modify-write instead of a fan-out across subcollections.
 - Token revocation isn't detected (see "API security" above).
 - Costs are treated as a flat total for the travelling party rather than
   computed per-traveller (except flights, which scale by traveller count).
-- There's no real AI itinerary generation (an LLM deciding the plan) — see
+- The AI only decides the city split (which cities, how many days each).
+  Individual activities, meals and hotels are still chosen by the
+  deterministic generator from the places provider, not by an LLM — see
   "Mock mode" above.
 - `google-provider.ts` is implemented against the documented Places API
   (New) `searchText`/details shapes and is fully wired up, but has **not been
