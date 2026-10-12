@@ -63,6 +63,7 @@ The AI is only used to suggest how many days to spend in each city. Everything e
 | `docs/` | Project documentation, including the data flow and architecture diagrams (`docs/diagrams.md`) |
 | `journals/` | Weekly journals of each team member |
 | `project-proposal/` | The project proposal (LaTeX source and PDF) |
+| `project-report-midsem/` | The mid-semester report (LaTeX source, figures and PDF) |
 | `project-report-final/` | Reserved for the final report |
 
 ## Running the application locally
