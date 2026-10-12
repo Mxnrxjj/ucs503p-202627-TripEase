@@ -216,10 +216,11 @@ work**.
    attractions, restaurants and nightlife for the destination.
 
 **This key is server-only.** It's read from `process.env` (no
-`NEXT_PUBLIC_` prefix) only inside `getPlacesProvider()`, which is only
-ever called from server code — the `/api/trips/generate` route and the
-`/api/places/photo` image proxy. It is never sent to, or readable from, the
-browser. Photos are streamed through `/api/places/photo` for the same
+`NEXT_PUBLIC_` prefix) only in server code: `getPlacesProvider()` (used by
+the `/api/trips/generate`, `/api/trips/rebuild` and `/api/places/search`
+routes), the `/api/places/photo` image proxy and the photo-link signing
+helper. It is never sent to, or readable from, the browser. Photos are
+streamed through `/api/places/photo` for the same
 reason: a raw Google photo URL needs the key attached as a query
 parameter, so the app fetches it server-side and relays the image bytes
 instead of ever putting that URL in front of a client.
@@ -340,8 +341,7 @@ emulators` in a second terminal.
 
 ## Deployment
 
-The app is hosted on **Vercel**. Automatic deployment of `main` to a staging
-environment is planned for the final submission.
+Merges to `main` deploy to a staging environment on **Vercel**.
 
 - Vercel project **Root Directory** is set to `code/`.
 - The six `NEXT_PUBLIC_FIREBASE_*` variables are configured in the Vercel
@@ -354,14 +354,11 @@ By default there's no AI provider or Places API key configured — the whole
 app works offline aside from Firebase:
 
 - **Itinerary generation** (`src/lib/services/itinerary-generator.ts`) is
-  deterministic: it decides which cities to visit and how many days each
-  gets, then asks the active **places provider** (see above) for that
+  deterministic: it takes the validated city plan (see "How a trip gets
+  planned") and asks the active **places provider** (see above) for each
   city's hotel, attractions, restaurants and nightlife. With the mock
   provider, Thailand (Bangkok + Phuket) is curated with real, well-known
-  attractions; any other destination falls back to a generic template. The
-  generator's function signature and output shape are exactly what a real
-  LLM-backed planner would need to produce, so swapping in a live AI
-  provider later touches only that one file.
+  attractions; any other destination falls back to a generic template.
 - **Every place carries its own provenance** (`Activity.source` /
   `Hotel.source`, see `src/types/place.ts`): `isDemoData` says whether the
   place itself is real, `priceIsEstimate` says whether its cost is a
@@ -389,7 +386,9 @@ src/
       dashboard/                trip list + "create new trip"
       trips/new/                the multi-step create-trip wizard
       trips/[tripId]/           the roadmap / budget / map trip view
+    api/trips/plan/             city planning endpoint (AI, then validation, then fallback)
     api/trips/generate/         itinerary generation endpoint
+    api/trips/rebuild/          rebuilds new or changed cities after "Edit cities"
     api/places/search/          server-side place search for the "replace with a real place" picker
     api/places/photo/           server-side proxy for Google Places photos (keeps the API key off the client)
     page.tsx                    landing page
@@ -397,7 +396,8 @@ src/
     landing/                   hero, how-it-works, itinerary + budget previews, features, CTA
     dashboard/                 trip card
     trips/wizard/               wizard shell, steps, generation loader
-    roadmap/                   city section, day view, activity editor/row, hotel editor, place search,
+    roadmap/                   trip header, city section, city manager ("Edit cities"), day view,
+                               activity editor/row, hotel editor, place search,
                                travel-segment row + feasibility notes
     budget/                    budget panel + chart
     maps/                      trip-map (filters/states) + leaflet-map (the map itself, client-only)
@@ -408,6 +408,10 @@ src/
     collections.ts               Firestore collection paths
     date.ts, utils.ts            date + formatting helpers
     draft-storage.ts             carries a trip idea from the landing page through sign-up
+    api-client.ts                attaches the Firebase ID token to API calls
+    server/
+      firebase-auth.ts           verifies Firebase ID tokens in the API routes
+      photo-signing.ts           signs and checks /api/places/photo links
     mock-data/                  curated destination content + city list, mock FX rates
     services/
       auth.ts                    the ONLY place Firebase Auth is touched (unchanged)
@@ -443,7 +447,7 @@ src/
     validation/
       trip.ts                     Zod schemas for trip input and generated itineraries
       places.ts                   Zod schemas for the Place model + raw Google API responses
-  types/                        trip.ts, itinerary.ts, budget.ts, place.ts
+  types/                        trip.ts, itinerary.ts, budget.ts, place.ts, planning.ts, travel.ts
 firestore.rules                 authorization layer, tested by tests/rules/
 ```
 
