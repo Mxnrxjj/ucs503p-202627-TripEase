@@ -39,4 +39,4 @@ The use case diagram is on its own page, [Use Cases](use-cases.md). It has the a
 
 ## Activity Diagram
 
-The activity diagram of the Create a trip use case is on its own page, [Activity Diagram](activity-diagram.md). It shows the steps from the wizard to the saved trip, including the AI retry and the fallback planner, with swimlanes for the traveller, TripEase and the external services.
+The activity diagram of the Create a trip use case is on its own page, [Activity Diagram](activity-diagram.md). It shows the steps from the wizard to the saved trip, including the AI retry and the fallback planner, with swimlanes for the traveller, TripEase, the AI provider, the places provider and Cloud Firestore.
