@@ -1,0 +1,2307 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../requirements/">
+      
+      
+        <link rel="next" href="../journals/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+  <title>TripEase | UCS503 Software Engineering @TIET</title>
+
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+  
+  
+  
+  
+  <style>:root{--md-annotation-icon:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M12%2020c-4.41%200-8-3.59-8-8s3.59-8%208-8%208%203.59%208%208-3.59%208-8%208m0-18A10%2010%200%200%200%202%2012a10%2010%200%200%200%2010%2010%2010%2010%200%200%200%2010-10A10%2010%200%200%200%2012%202m1%205h-2v4H7v2h4v4h2v-4h4v-2h-4z%22/%3E%3C/svg%3E');}</style>
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../assets/stylesheets/extra.css">
+    
+      <link rel="stylesheet" href="https://unpkg.com/katex@0/dist/katex.min.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="amber" data-md-color-accent="orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#use-cases" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="TripEase : UCS503 Software Engineering" class="md-header__button md-logo" aria-label="TripEase : UCS503 Software Engineering" data-md-component="logo">
+      
+  <img src="../assets/tiet-logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TripEase : UCS503 Software Engineering
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Use Cases
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Mxnrxjj/ucs503p-202627-TripEase" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ucs503p-202627-TripEase
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="TripEase : UCS503 Software Engineering" class="md-nav__button md-logo" aria-label="TripEase : UCS503 Software Engineering" data-md-component="logo">
+      
+  <img src="../assets/tiet-logo.svg" alt="logo">
+
+    </a>
+    TripEase : UCS503 Software Engineering
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Mxnrxjj/ucs503p-202627-TripEase" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ucs503p-202627-TripEase
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../activity-diagram/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Activity Diagram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../criteria-for-project-selection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Criteria for Project Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../diagrams/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TripEase Diagrams
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../requirements/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Requirements
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Use Cases
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Use Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-actors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Actors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-diagram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Diagram
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Diagram">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#relationships-between-use-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Relationships between use cases
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-use-case-descriptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Use case descriptions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Use case descriptions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#uc-1-sign-up-sign-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UC-1: Sign up / sign in
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uc-2-create-a-trip" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UC-2: Create a trip
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uc-3-edit-the-itinerary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UC-3: Edit the itinerary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uc-4-edit-cities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UC-4: Edit cities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uc-5-replace-a-place" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UC-5: Replace a place
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uc-6-view-map-and-budget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UC-6: View map and budget
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uc-7-manage-trips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UC-7: Manage trips
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uc-8-plan-city-split" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UC-8: Plan city split
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uc-9-use-fallback-planner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UC-9: Use fallback planner
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uc-10-fetch-places" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UC-10: Fetch places
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uc-11-work-out-budget-and-save-trip" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UC-11: Work out budget and save trip
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uc-12-show-savings-suggestions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UC-12: Show savings suggestions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-regenerating-the-image" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Regenerating the image
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../journals/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Journals
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Journals
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../journals/1024030709-nimitt/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1024030709 nimitt
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1" id="__nav_8_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    1024030709 nimitt
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030709-nimitt/w1-requirements-and-data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 1 : Requirements that Did Not Match the Proposal, and the Data Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030709-nimitt/w2-use-cases-and-activity-diagram/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 2 : An Activity Diagram that Did Not Follow the Course Notation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030709-nimitt/w3-unit-tests-and-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 3 : Unit Tests for the Formatting Helpers, and the Shared UI and Sign-in Screens
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030709-nimitt/w4-report-and-cleanup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 4 : Preparing the Mid-Semester Report and Cleaning Up the Repository
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../journals/1024030712-manraj/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1024030712 manraj
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    1024030712 manraj
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030712-manraj/w1-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 1 : Protecting the API Routes and the Data, and the Firebase Layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030712-manraj/w2-city-planner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 2 : An AI City Planner that Cannot Break the App
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030712-manraj/w3-feasibility-engine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 3 : A Feasibility Engine Built on Honest Estimates, and a Map that Never Guesses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030712-manraj/w4-places-generator-budget-ci/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 4 : Places, Itineraries, API Routes, Saving Trips, the Budget Engine and CI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../journals/1024030714-vatsal/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1024030714 vatsal
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_3" id="__nav_8_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    1024030714 vatsal
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030714-vatsal/w1-draft-storage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 1 : The Landing Page, and Keeping a Visitor's Trip Idea Alive through Sign-up
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030714-vatsal/w2-wizard-and-generation-screen/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 2 : The Wizard Steps, and a Generation Screen that Shows Only Real Progress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030714-vatsal/w3-dashboard-and-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 3 : A Dashboard that Updates Live, the Trip Page and the Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030714-vatsal/w4-budget-map-validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 4 : The Budget Panel, the Map and the Validation Schemas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="use-cases">Use Cases</h1>
+<p>This page has the use case diagram of TripEase and a description of every use case, written with the use case template from the course. UC-1 to UC-7 are the use cases from the <a href="../requirements/">requirements</a> page. UC-8 to UC-12 are supporting use cases that the main ones include or extend. FR-25 to FR-27 are still planned, so they have no use cases yet.</p>
+<h2 id="1-actors">1. Actors</h2>
+<table>
+<thead>
+<tr>
+<th>Actor</th>
+<th>Category</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Traveller</td>
+<td>Primary actor</td>
+<td>Uses the main functions of the system: creates trips, edits them, looks at the map and the budget.</td>
+</tr>
+<tr>
+<td>Firebase Authentication</td>
+<td>Other system</td>
+<td>Signs the traveller up and in, with email and password or with Google.</td>
+</tr>
+<tr>
+<td>Cloud Firestore</td>
+<td>Other system</td>
+<td>Stores the trips. Only the owner of a trip can read or change it.</td>
+</tr>
+<tr>
+<td>AI provider (Groq, or a mock for testing)</td>
+<td>Other system</td>
+<td>Suggests how many days to spend in each city.</td>
+</tr>
+<tr>
+<td>Places provider (Google Places, or our demo data)</td>
+<td>Other system</td>
+<td>Gives us hotels, sights, restaurants and nightlife.</td>
+</tr>
+<tr>
+<td>OpenStreetMap</td>
+<td>Other system</td>
+<td>Gives the map tiles.</td>
+</tr>
+</tbody>
+</table>
+<p>We have no secondary actor, because the app has no admin role, and no external hardware.</p>
+<h2 id="2-diagram">2. Diagram</h2>
+<p>The notation is the one from the course slides. A stick figure is an actor and sits outside the system boundary, an oval is a use case, and a plain line joins an actor to the use cases it takes part in. A dashed arrow marked <code>&lt;&lt;includes&gt;&gt;</code> points to the use case that is included. A dashed arrow marked <code>&lt;&lt;extends&gt;&gt;</code> points to the use case that is extended. We kept the spelling used in the slides.</p>
+<p><a href="../diagrams/usecase.png"><img alt="Use case diagram" src="../diagrams/usecase.png" /></a></p>
+<h3 id="relationships-between-use-cases">Relationships between use cases</h3>
+<table>
+<thead>
+<tr>
+<th>Use case</th>
+<th>Relationship</th>
+<th>Use case</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UC-2 Create a trip</td>
+<td>includes</td>
+<td>UC-8 Plan city split</td>
+<td>Every new trip needs its cities decided first.</td>
+</tr>
+<tr>
+<td>UC-2 Create a trip</td>
+<td>includes</td>
+<td>UC-10 Fetch places</td>
+<td>The days are filled with real places.</td>
+</tr>
+<tr>
+<td>UC-2 Create a trip</td>
+<td>includes</td>
+<td>UC-11 Work out budget and save trip</td>
+<td>A new trip gets a budget and is saved.</td>
+</tr>
+<tr>
+<td>UC-3 Edit the itinerary</td>
+<td>includes</td>
+<td>UC-11 Work out budget and save trip</td>
+<td>Every edit changes the budget and has to be saved.</td>
+</tr>
+<tr>
+<td>UC-4 Edit cities</td>
+<td>includes</td>
+<td>UC-10 Fetch places</td>
+<td>A new city needs places.</td>
+</tr>
+<tr>
+<td>UC-4 Edit cities</td>
+<td>includes</td>
+<td>UC-11 Work out budget and save trip</td>
+<td>The rebuilt trip gets a new budget and is saved.</td>
+</tr>
+<tr>
+<td>UC-5 Replace a place</td>
+<td>includes</td>
+<td>UC-10 Fetch places</td>
+<td>The search for a place goes to the places provider.</td>
+</tr>
+<tr>
+<td>UC-9 Use fallback planner</td>
+<td>extends</td>
+<td>UC-8 Plan city split</td>
+<td>Only used when the AI is not available or its plan is not accepted.</td>
+</tr>
+<tr>
+<td>UC-5 Replace a place</td>
+<td>extends</td>
+<td>UC-3 Edit the itinerary</td>
+<td>Only used when the traveller searches for a real place while editing an activity.</td>
+</tr>
+<tr>
+<td>UC-12 Show savings suggestions</td>
+<td>extends</td>
+<td>UC-6 View map and budget</td>
+<td>Only used when the trip is over budget.</td>
+</tr>
+</tbody>
+</table>
+<p>Two more notes on what the diagram leaves out. Every use case except UC-1 needs a signed-in traveller, and we did not draw an include arrow for that, to keep the diagram readable. It is a pre condition in each template below. Signing out (FR-3) is a single action, so it is not drawn as a use case. There is no generalisation, because there is only one kind of human actor.</p>
+<h2 id="3-use-case-descriptions">3. Use case descriptions</h2>
+<p>In the flows, <strong>AA</strong> is an actor action, <strong>SR</strong> is a system response and <strong>SA</strong> is a system action.</p>
+<h3 id="uc-1-sign-up-sign-in">UC-1: Sign up / sign in</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Use case</td>
+<td>UC-1 Sign up / sign in</td>
+</tr>
+<tr>
+<td>Actors</td>
+<td>Traveller (initiates), Firebase Authentication</td>
+</tr>
+<tr>
+<td>Type</td>
+<td>Primary</td>
+</tr>
+<tr>
+<td>Purpose</td>
+<td>Let a traveller into the app with an account.</td>
+</tr>
+<tr>
+<td>Overview</td>
+<td>The traveller creates an account or signs in, with email and password or with Google.</td>
+</tr>
+<tr>
+<td>Pre condition</td>
+<td>The traveller is not signed in.</td>
+</tr>
+<tr>
+<td>Post condition</td>
+<td>The traveller is signed in and can open the dashboard and the trip pages.</td>
+</tr>
+<tr>
+<td>Requirements</td>
+<td>FR-1, FR-2, FR-4, FR-5</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Typical course of events</strong></p>
+<ol>
+<li>(AA) The traveller opens the sign-in page. A new traveller opens the sign-up page instead.</li>
+<li>(SR) The system shows a form with email, password (at least 6 characters) and, on sign-up, an optional name. There is also a "Continue with Google" button.</li>
+<li>(AA) The traveller enters the email and password and submits the form.</li>
+<li>(SA) The system passes the details to Firebase Authentication, to sign in or to create the account.</li>
+<li>(AA) Firebase Authentication accepts the details and signs the traveller in.</li>
+<li>(SR) The system opens the trip wizard if the traveller had started a trip on the landing page. Otherwise it opens the dashboard.</li>
+</ol>
+<p><strong>Alternate flow</strong></p>
+<ul>
+<li><strong>Step 1:</strong> The traveller was sent here because they opened the dashboard or a trip page without being signed in.</li>
+<li><strong>Step 3:</strong> The traveller chooses "Continue with Google" and finishes in the Google pop-up. The flow continues at step 5.</li>
+</ul>
+<p><strong>Exceptional flow</strong></p>
+<ul>
+<li><strong>Step 5:</strong> Firebase Authentication refuses (wrong email or password, an account that already exists, a weak password, too many attempts, a network problem), or the Google window is closed. The system shows a message and the traveller stays on the same page.</li>
+</ul>
+<h3 id="uc-2-create-a-trip">UC-2: Create a trip</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Use case</td>
+<td>UC-2 Create a trip</td>
+</tr>
+<tr>
+<td>Actors</td>
+<td>Traveller (initiates). The AI provider, the places provider and Cloud Firestore take part through UC-8, UC-10 and UC-11.</td>
+</tr>
+<tr>
+<td>Type</td>
+<td>Primary</td>
+</tr>
+<tr>
+<td>Purpose</td>
+<td>Turn a few answers into a full trip with cities, days, hotels, activities and a budget.</td>
+</tr>
+<tr>
+<td>Overview</td>
+<td>The traveller goes through the wizard. The system decides the cities, fills the days with places, works out the budget and saves the trip.</td>
+</tr>
+<tr>
+<td>Pre condition</td>
+<td>The traveller is signed in.</td>
+</tr>
+<tr>
+<td>Post condition</td>
+<td>The trip is saved under the traveller's account and its page is open.</td>
+</tr>
+<tr>
+<td>Includes</td>
+<td>UC-8 Plan city split, UC-10 Fetch places, UC-11 Work out budget and save trip</td>
+</tr>
+<tr>
+<td>Requirements</td>
+<td>FR-5 to FR-12, FR-23</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Typical course of events</strong></p>
+<ol>
+<li>(AA) The traveller selects "Create new trip" on the dashboard, or arrives from the landing page after signing up.</li>
+<li>(SR) The system opens the wizard. If the traveller started a trip on the landing page, destination, dates, budget and currency are already filled in.</li>
+<li>(AA) The traveller goes through the steps: destination, dates, budget and currency, travellers, travel style, and a final review.</li>
+<li>(SR) The system lets the traveller go to the next step only when the current one is valid.</li>
+<li>(AA) The traveller selects "Generate my trip".</li>
+<li>(SA) The system decides the cities (UC-8). The loading screen shows the cities it chose.</li>
+<li>(SA) The system fetches places for each city (UC-10), arranges them into days and checks the result.</li>
+<li>(SA) The system works out the budget and saves the trip (UC-11).</li>
+<li>(SR) The trip page opens with the roadmap, the map and the budget.</li>
+</ol>
+<p><strong>Alternate flow</strong></p>
+<ul>
+<li><strong>Step 2:</strong> There is no landing-page draft, so the wizard starts with default values.</li>
+<li><strong>Step 3:</strong> The traveller goes back to a previous step and changes an answer.</li>
+</ul>
+<p><strong>Exceptional flow</strong></p>
+<ul>
+<li><strong>Step 4:</strong> The destination is shorter than 2 characters, the end date is before the start date, the budget is not above 0, or there are no travellers. The "Next" button stays disabled.</li>
+<li><strong>Steps 6 to 8:</strong> A service fails, the session has expired, or the server rejects the details (for example, no travel style was chosen). The wizard shows the error message and goes back to the review step with the answers still filled in.</li>
+</ul>
+<h3 id="uc-3-edit-the-itinerary">UC-3: Edit the itinerary</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Use case</td>
+<td>UC-3 Edit the itinerary</td>
+</tr>
+<tr>
+<td>Actors</td>
+<td>Traveller (initiates). Cloud Firestore takes part through UC-11.</td>
+</tr>
+<tr>
+<td>Type</td>
+<td>Primary</td>
+</tr>
+<tr>
+<td>Purpose</td>
+<td>Let the traveller change the plan to what they actually want.</td>
+</tr>
+<tr>
+<td>Overview</td>
+<td>The traveller adds, edits, removes or reorders activities, or changes the hotel of a city. The budget, the warnings and the map follow the change.</td>
+</tr>
+<tr>
+<td>Pre condition</td>
+<td>The traveller is signed in, owns the trip and has the trip page open.</td>
+</tr>
+<tr>
+<td>Post condition</td>
+<td>The change is saved and the budget matches the new plan.</td>
+</tr>
+<tr>
+<td>Includes</td>
+<td>UC-11 Work out budget and save trip</td>
+</tr>
+<tr>
+<td>Extended by</td>
+<td>UC-5 Replace a place</td>
+</tr>
+<tr>
+<td>Requirements</td>
+<td>FR-15, FR-16, FR-18, FR-22, FR-23</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Typical course of events</strong></p>
+<ol>
+<li>(AA) The traveller adds an activity to a day, edits or removes one, drags an activity to a new position, or changes the hotel of a city.</li>
+<li>(SR) For an added or edited activity, or for a hotel change, the system opens a form with the details.</li>
+<li>(AA) The traveller fills in the form and saves it.</li>
+<li>(SA) The system works out the new budget and saves the change (UC-11).</li>
+<li>(SR) The roadmap, the map, the budget and the warnings for each day update.</li>
+</ol>
+<p><strong>Alternate flow</strong></p>
+<ul>
+<li><strong>Step 1:</strong> Removing or dragging an activity needs no form, so the flow goes straight to step 4.</li>
+<li><strong>Step 2:</strong> While the form is open, the traveller can search for a real place (UC-5).</li>
+</ul>
+<p><strong>Exceptional flow</strong></p>
+<ul>
+<li><strong>Step 3:</strong> In the activity form, the name is empty or the reference link is not a full URL. The form shows a message, stays open and nothing is saved.</li>
+</ul>
+<h3 id="uc-4-edit-cities">UC-4: Edit cities</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Use case</td>
+<td>UC-4 Edit cities</td>
+</tr>
+<tr>
+<td>Actors</td>
+<td>Traveller (initiates). The places provider and Cloud Firestore take part through UC-10 and UC-11.</td>
+</tr>
+<tr>
+<td>Type</td>
+<td>Primary</td>
+</tr>
+<tr>
+<td>Purpose</td>
+<td>Let the traveller change which cities are visited and for how many days.</td>
+</tr>
+<tr>
+<td>Overview</td>
+<td>The traveller adds, removes, renames or re-times cities. The system checks the new list and rebuilds only the cities that are new or changed.</td>
+</tr>
+<tr>
+<td>Pre condition</td>
+<td>The traveller is signed in, owns the trip and has the trip page open.</td>
+</tr>
+<tr>
+<td>Post condition</td>
+<td>The trip has the new cities and days, a new budget and the updated plan. Cities that were not touched keep their activities.</td>
+</tr>
+<tr>
+<td>Includes</td>
+<td>UC-10 Fetch places, UC-11 Work out budget and save trip</td>
+</tr>
+<tr>
+<td>Requirements</td>
+<td>FR-9, FR-17</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Typical course of events</strong></p>
+<ol>
+<li>(AA) The traveller selects "Edit cities" on the roadmap.</li>
+<li>(SR) The system shows the cities with their number of days.</li>
+<li>(AA) The traveller adds a city, removes one, renames one or changes its days.</li>
+<li>(SR) The system checks the list while the traveller types. The days must add up to the length of the trip, no city can be repeated, every city needs at least 1 day, there can be at most 8 cities, and no more cities than days.</li>
+<li>(AA) The traveller saves the list.</li>
+<li>(SA) The server checks the list again and rebuilds the trip. Cities that were not changed keep their activities, and new cities get places from the places provider (UC-10).</li>
+<li>(SA) The system works out the budget and saves the trip, together with a note that the cities were edited by the traveller (UC-11).</li>
+<li>(SR) The roadmap, the map and the budget show the new cities.</li>
+</ol>
+<p><strong>Alternate flow</strong></p>
+<ul>
+<li><strong>Step 3:</strong> The last remaining city cannot be removed, and a city cannot be added once there are as many cities as days. Those buttons are disabled.</li>
+</ul>
+<p><strong>Exceptional flow</strong></p>
+<ul>
+<li><strong>Step 4:</strong> The list breaks one of the rules. The system shows the first problem, the "Save" button is disabled and nothing is saved.</li>
+<li><strong>Steps 6 and 7:</strong> The server refuses the list or something fails. The dialog shows the error and the trip stays as it was.</li>
+</ul>
+<h3 id="uc-5-replace-a-place">UC-5: Replace a place</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Use case</td>
+<td>UC-5 Replace a place</td>
+</tr>
+<tr>
+<td>Actors</td>
+<td>Traveller (initiates). The places provider takes part through UC-10.</td>
+</tr>
+<tr>
+<td>Type</td>
+<td>Primary</td>
+</tr>
+<tr>
+<td>Purpose</td>
+<td>Let the traveller swap an activity for a real place, so that its location and source stay attached.</td>
+</tr>
+<tr>
+<td>Overview</td>
+<td>In the activity form, the traveller searches for a place, picks one, and the form is filled with its details.</td>
+</tr>
+<tr>
+<td>Pre condition</td>
+<td>The traveller is signed in and has the add or edit activity form open (UC-3).</td>
+</tr>
+<tr>
+<td>Post condition</td>
+<td>The activity refers to the chosen place and keeps its location and source.</td>
+</tr>
+<tr>
+<td>Includes</td>
+<td>UC-10 Fetch places</td>
+</tr>
+<tr>
+<td>Extends</td>
+<td>UC-3 Edit the itinerary</td>
+</tr>
+<tr>
+<td>Requirements</td>
+<td>FR-12, FR-16</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Typical course of events</strong></p>
+<ol>
+<li>(AA) The traveller types at least 2 characters in "Replace with a real place" and starts the search.</li>
+<li>(SA) The system asks the places provider (UC-10) for matching places in the destination of the trip. It looks for restaurants if the activity is a food activity and for attractions otherwise.</li>
+<li>(SR) The system lists the matches with name, rating, address, coordinates and estimated price. Demo places are marked "Demo".</li>
+<li>(AA) The traveller picks a place.</li>
+<li>(SR) The system fills the form with the name, category, description, duration, estimated cost and source link of the place, and keeps its location and source attached.</li>
+<li>(AA) The traveller saves the form. The flow continues at step 4 of UC-3.</li>
+</ol>
+<p><strong>Alternate flow</strong></p>
+<ul>
+<li><strong>Step 4:</strong> No place matched. The system suggests a broader search or typing the name by hand.</li>
+<li><strong>Step 5:</strong> The traveller types over the name after picking a place. The place is detached, so the activity has no location or source any more.</li>
+</ul>
+<p><strong>Exceptional flow</strong></p>
+<ul>
+<li><strong>Step 2:</strong> The live provider fails. The system shows demo places and a notice that says so.</li>
+<li><strong>Step 2:</strong> The search cannot be done at all (for example a network error or an expired session). The form shows a message and the traveller can still type a name.</li>
+</ul>
+<h3 id="uc-6-view-map-and-budget">UC-6: View map and budget</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Use case</td>
+<td>UC-6 View map and budget</td>
+</tr>
+<tr>
+<td>Actors</td>
+<td>Traveller (initiates), OpenStreetMap, Cloud Firestore</td>
+</tr>
+<tr>
+<td>Type</td>
+<td>Primary</td>
+</tr>
+<tr>
+<td>Purpose</td>
+<td>Show the plan on a map and show what it costs.</td>
+</tr>
+<tr>
+<td>Overview</td>
+<td>The traveller opens a trip and looks at the roadmap with the map beside it, then at the budget.</td>
+</tr>
+<tr>
+<td>Pre condition</td>
+<td>The traveller is signed in and owns the trip.</td>
+</tr>
+<tr>
+<td>Post condition</td>
+<td>None. This use case only reads the trip.</td>
+</tr>
+<tr>
+<td>Extended by</td>
+<td>UC-12 Show savings suggestions</td>
+</tr>
+<tr>
+<td>Requirements</td>
+<td>FR-19 to FR-23</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Typical course of events</strong></p>
+<ol>
+<li>(AA) The traveller opens a trip from the dashboard.</li>
+<li>(SA) The system loads the trip from Cloud Firestore and keeps listening for changes.</li>
+<li>(SR) The Roadmap tab shows the cities and days with the estimated travel time between stops. A day that does not fit between 09:00 and 21:00 is marked red, and a tight day amber. The map is next to it.</li>
+<li>(AA) The traveller sets the map to the whole trip, a city or a day, or selects a pin or a place in the roadmap.</li>
+<li>(SR) The map shows the matching pins on OpenStreetMap tiles. For a day it joins the stops in order with a line, and for the whole trip it joins the cities. Selecting a pin opens the place in the roadmap and the other way round.</li>
+<li>(AA) The traveller opens the Budget tab.</li>
+<li>(SR) The system shows the budget, the estimated cost, how much is left or over, and the cost of each category: hotels, flights, food, activities, transport, shopping, miscellaneous and emergency buffer.</li>
+</ol>
+<p>If the estimate is above the budget, UC-12 adds its suggestions after step 7.</p>
+<p><strong>Alternate flow</strong></p>
+<ul>
+<li><strong>Step 3:</strong> On a small screen the traveller shows or hides the map with a button.</li>
+</ul>
+<p><strong>Exceptional flow</strong></p>
+<ul>
+<li><strong>Step 2:</strong> The trip cannot be loaded. The page shows a message. If the trip does not exist or is not the traveller's, the page says so and links back to the dashboard.</li>
+<li><strong>Step 5:</strong> A place without coordinates is not on the map. The map says how many places are missing.</li>
+</ul>
+<h3 id="uc-7-manage-trips">UC-7: Manage trips</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Use case</td>
+<td>UC-7 Manage trips</td>
+</tr>
+<tr>
+<td>Actors</td>
+<td>Traveller (initiates), Cloud Firestore</td>
+</tr>
+<tr>
+<td>Type</td>
+<td>Primary</td>
+</tr>
+<tr>
+<td>Purpose</td>
+<td>Let the traveller find, open, rename and delete their trips.</td>
+</tr>
+<tr>
+<td>Overview</td>
+<td>The dashboard lists the traveller's own trips. From there a trip can be opened or deleted, and on the trip page it can be renamed.</td>
+</tr>
+<tr>
+<td>Pre condition</td>
+<td>The traveller is signed in.</td>
+</tr>
+<tr>
+<td>Post condition</td>
+<td>The dashboard and the trip page show the current trips and titles.</td>
+</tr>
+<tr>
+<td>Requirements</td>
+<td>FR-13, FR-14</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Typical course of events</strong></p>
+<ol>
+<li>(AA) The traveller opens the dashboard.</li>
+<li>(SA) The system loads the traveller's trips from Cloud Firestore and keeps listening for changes.</li>
+<li>(SR) The system shows each trip as a card with its title, dates, number of travellers and budget. Trips that have not ended yet are under "Your trips" and finished ones under "Past trips".</li>
+<li>(AA) The traveller opens a trip.</li>
+<li>(SR) The trip page opens (UC-6).</li>
+</ol>
+<p><strong>Alternate flow</strong></p>
+<ul>
+<li><strong>Step 4:</strong> Delete: the traveller selects the bin icon on a card and the card asks for confirmation. On "Confirm" the system deletes the trip from Cloud Firestore and the card disappears. On "Cancel" nothing happens.</li>
+<li><strong>Step 4:</strong> Rename: on the trip page the traveller selects the pencil next to the title, types a new title and saves. The system stores the new title. An empty title is not saved.</li>
+<li><strong>Step 3:</strong> The traveller has no trips yet. The system shows an empty page with a button to create the first trip (UC-2).</li>
+</ul>
+<p><strong>Exceptional flow</strong></p>
+<ul>
+<li><strong>Step 2:</strong> The trips cannot be loaded. The dashboard shows a message.</li>
+<li><strong>Step 4:</strong> A delete fails. The card shows the error and the trip stays.</li>
+</ul>
+<h3 id="uc-8-plan-city-split">UC-8: Plan city split</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Use case</td>
+<td>UC-8 Plan city split</td>
+</tr>
+<tr>
+<td>Actors</td>
+<td>AI provider. The system starts it as part of UC-2.</td>
+</tr>
+<tr>
+<td>Type</td>
+<td>Secondary</td>
+</tr>
+<tr>
+<td>Purpose</td>
+<td>Decide which cities to visit and how many days to spend in each.</td>
+</tr>
+<tr>
+<td>Overview</td>
+<td>The AI provider suggests a split and the system accepts it only if it passes our own checks. The AI does not pick places or prices.</td>
+</tr>
+<tr>
+<td>Pre condition</td>
+<td>The traveller has finished the wizard.</td>
+</tr>
+<tr>
+<td>Post condition</td>
+<td>The system has a valid city plan, whatever the AI did.</td>
+</tr>
+<tr>
+<td>Extended by</td>
+<td>UC-9 Use fallback planner</td>
+</tr>
+<tr>
+<td>Requirements</td>
+<td>FR-8, FR-9, FR-10</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Typical course of events</strong></p>
+<ol>
+<li>(SA) The system sends the trip details (destination, dates, number of days, travellers, budget, currency and travel styles) to the AI provider and asks for a split of the days between cities.</li>
+<li>(AA) The AI provider answers with a list of cities, the days for each one and a short reason.</li>
+<li>(SA) The system checks the answer. It must be for the same destination, the days must add up to the length of the trip, no city can be repeated, every city needs at least 1 day, there can be at most 8 cities, and no more cities than days.</li>
+<li>(SR) The plan is accepted and recorded together with the planner that made it. The loading screen shows the cities and marks the route as AI planned.</li>
+</ol>
+<p><strong>Alternate flow</strong></p>
+<ul>
+<li><strong>Step 3:</strong> The answer is not valid JSON in the expected shape, or it fails the checks. The system asks the AI provider once more and tells it what was wrong.</li>
+</ul>
+<p><strong>Exceptional flow</strong></p>
+<ul>
+<li><strong>Steps 1 to 3:</strong> There is no AI key, the provider fails, it takes longer than 20 seconds, or the second answer is still not valid. The system goes to UC-9.</li>
+</ul>
+<h3 id="uc-9-use-fallback-planner">UC-9: Use fallback planner</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Use case</td>
+<td>UC-9 Use fallback planner</td>
+</tr>
+<tr>
+<td>Actors</td>
+<td>None. This is done by the system alone.</td>
+</tr>
+<tr>
+<td>Type</td>
+<td>Secondary</td>
+</tr>
+<tr>
+<td>Purpose</td>
+<td>Make sure a trip can always be planned, even without the AI.</td>
+</tr>
+<tr>
+<td>Overview</td>
+<td>The system splits the days between cities with its own rules.</td>
+</tr>
+<tr>
+<td>Pre condition</td>
+<td>The AI is not available, or its plan was not accepted in UC-8.</td>
+</tr>
+<tr>
+<td>Post condition</td>
+<td>A valid city plan, recorded as "fallback" with the reason.</td>
+</tr>
+<tr>
+<td>Extends</td>
+<td>UC-8 Plan city split</td>
+</tr>
+<tr>
+<td>Requirements</td>
+<td>FR-10</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Typical course of events</strong></p>
+<ol>
+<li>(SA) The system splits the days between cities for the destination, using its own planner.</li>
+<li>(SA) The system runs the same checks as in step 3 of UC-8.</li>
+<li>(SA) The system records the plan as "fallback", with the reason.</li>
+<li>(SR) The loading screen marks the route as planned by TripEase and says that AI planning is not available right now. It is not shown as an error.</li>
+</ol>
+<h3 id="uc-10-fetch-places">UC-10: Fetch places</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Use case</td>
+<td>UC-10 Fetch places</td>
+</tr>
+<tr>
+<td>Actors</td>
+<td>Places provider. The system starts it as part of UC-2, UC-4 or UC-5.</td>
+</tr>
+<tr>
+<td>Type</td>
+<td>Secondary</td>
+</tr>
+<tr>
+<td>Purpose</td>
+<td>Get real places for a trip.</td>
+</tr>
+<tr>
+<td>Overview</td>
+<td>The system asks the places provider for hotels, sights, restaurants and nightlife of a city, or for the words the traveller searched for.</td>
+</tr>
+<tr>
+<td>Pre condition</td>
+<td>The caller has a destination and what to look for.</td>
+</tr>
+<tr>
+<td>Post condition</td>
+<td>The caller has a list of places that each say where they came from.</td>
+</tr>
+<tr>
+<td>Requirements</td>
+<td>FR-11, FR-12</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Typical course of events</strong></p>
+<ol>
+<li>(SA) The system asks the places provider for places in a city, or for the search words of the traveller.</li>
+<li>(AA) The places provider returns places with name, location, rating, estimated price, photo link and source.</li>
+<li>(SA) The system keeps answers from the live provider for 10 minutes (at most 500 entries), so the same search is not paid for twice.</li>
+<li>(SR) The places go back to the caller.</li>
+</ol>
+<p><strong>Exceptional flow</strong></p>
+<ul>
+<li><strong>Step 2:</strong> There is no Google key, the live search fails or it finds nothing. The system uses demo places instead. They are marked "Demo data".</li>
+</ul>
+<h3 id="uc-11-work-out-budget-and-save-trip">UC-11: Work out budget and save trip</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Use case</td>
+<td>UC-11 Work out budget and save trip</td>
+</tr>
+<tr>
+<td>Actors</td>
+<td>Cloud Firestore. The system starts it as part of UC-2, UC-3 and UC-4.</td>
+</tr>
+<tr>
+<td>Type</td>
+<td>Secondary</td>
+</tr>
+<tr>
+<td>Purpose</td>
+<td>Keep the budget and the saved trip in line with the plan.</td>
+</tr>
+<tr>
+<td>Overview</td>
+<td>After a trip is built or changed, the system works out the budget and writes the trip to Cloud Firestore.</td>
+</tr>
+<tr>
+<td>Pre condition</td>
+<td>A trip was built or changed.</td>
+</tr>
+<tr>
+<td>Post condition</td>
+<td>The stored trip and its budget agree with each other.</td>
+</tr>
+<tr>
+<td>Requirements</td>
+<td>FR-18, FR-23</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Typical course of events</strong></p>
+<ol>
+<li>(SA) The system works out the budget from the cities, the days, the activities and the number of travellers: hotels, flights, food, activities, transport, shopping, miscellaneous and the emergency buffer, and the total estimate.</li>
+<li>(SA) The system writes the changed parts of the trip to its document in Cloud Firestore (a new trip is created with the traveller as owner) and updates the time of the last change.</li>
+<li>(AA) Cloud Firestore accepts the write if the traveller is signed in and owns the trip.</li>
+</ol>
+<p><strong>Exceptional flow</strong></p>
+<ul>
+<li><strong>Step 3:</strong> Cloud Firestore refuses the write because the traveller is not signed in or does not own the trip. Nothing is saved.</li>
+</ul>
+<h3 id="uc-12-show-savings-suggestions">UC-12: Show savings suggestions</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Use case</td>
+<td>UC-12 Show savings suggestions</td>
+</tr>
+<tr>
+<td>Actors</td>
+<td>Traveller (initiates)</td>
+</tr>
+<tr>
+<td>Type</td>
+<td>Secondary</td>
+</tr>
+<tr>
+<td>Purpose</td>
+<td>Help the traveller bring an over-budget trip back within budget.</td>
+</tr>
+<tr>
+<td>Overview</td>
+<td>When the estimate is above the budget, the Budget tab lists up to three ways to save and the traveller can apply one.</td>
+</tr>
+<tr>
+<td>Pre condition</td>
+<td>The Budget tab is open and the estimated total is above the budget.</td>
+</tr>
+<tr>
+<td>Post condition</td>
+<td>If a suggestion was applied, the trip and its budget are changed and saved.</td>
+</tr>
+<tr>
+<td>Extends</td>
+<td>UC-6 View map and budget</td>
+</tr>
+<tr>
+<td>Requirements</td>
+<td>FR-24</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Typical course of events</strong></p>
+<ol>
+<li>(SR) The system shows a warning with the amount by which the trip is over budget.</li>
+<li>(SR) The system lists up to three ways to save, each with the estimated saving: a more modest hotel in the city with the priciest hotel, a shared tour instead of the most expensive non-food activity, and local restaurants instead of hotel dining.</li>
+<li>(AA) The traveller selects "Apply" on one of them.</li>
+<li>(SA) The system changes the trip. The hotel is replaced by a budget option at 70% of the nightly price and marked as demo data, the activity becomes a shared tour at 40% of its cost, or the food costs go down by 15%. The system then works out the budget again and saves the trip.</li>
+<li>(SR) The Budget tab shows the new numbers.</li>
+</ol>
+<p><strong>Alternate flow</strong></p>
+<ul>
+<li><strong>Step 3:</strong> The traveller ignores the suggestions and leaves the trip as it is.</li>
+</ul>
+<h2 id="4-regenerating-the-image">4. Regenerating the image</h2>
+<p>The <code>.dot</code> source and the stick figure it uses (<code>actor.png</code>) are in <code>docs/diagrams/</code>. The positions are set by hand in the file, so the layout stays the same. From that folder:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>neato -n -Tpng -Gdpi=80 usecase.dot -o usecase.png
+</span></code></pre></div>
+
+
+
+
+
+
+
+  
+    
+  
+  
+
+
+  <aside class="md-source-file">
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Last update">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="October 13, 2026 06:23:30 UTC">October 13, 2026</span>
+  </span>
+
+    
+    
+    
+      
+  
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Contributors">
+      
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4"/></svg>
+      
+    </span>
+    <nav>
+      
+        <a href="mailto:singhmanraj620@gmail.com">Mxnrxjj</a>
+    </nav>
+  </span>
+
+    
+    
+  </aside>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../requirements/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Requirements">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Requirements
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../journals/" class="md-footer__link md-footer__link--next" aria-label="Next: Journals">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Journals
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2025 <a href='https://bvraghav.com/'>Raghav B. Venkataramaiyer</a> &lt;<code style='color:inherit; background:transparent'>bv.raghav</code>&gt;
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/Mxnrxjj/ucs503p-202627-TripEase" target="_blank" rel="noopener" title="TripEase on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.footer", "header.autohide", "content.tabs.link", "navigation.tracking", "navigation.top", "toc.integrate", "content.tooltips"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://unpkg.com/katex@0/dist/katex.min.js"></script>
+      
+        <script src="../javascript/arithmatex.js"></script>
+      
+    
+  </body>
+</html>

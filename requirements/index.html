@@ -1,0 +1,1985 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../diagrams/">
+      
+      
+        <link rel="next" href="../use-cases/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+  <title>TripEase | UCS503 Software Engineering @TIET</title>
+
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+  
+  
+  
+  
+  <style>:root{--md-annotation-icon:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M12%2020c-4.41%200-8-3.59-8-8s3.59-8%208-8%208%203.59%208%208-3.59%208-8%208m0-18A10%2010%200%200%200%202%2012a10%2010%200%200%200%2010%2010%2010%2010%200%200%200%2010-10A10%2010%200%200%200%2012%202m1%205h-2v4H7v2h4v4h2v-4h4v-2h-4z%22/%3E%3C/svg%3E');}</style>
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../assets/stylesheets/extra.css">
+    
+      <link rel="stylesheet" href="https://unpkg.com/katex@0/dist/katex.min.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="amber" data-md-color-accent="orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#requirements" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="TripEase : UCS503 Software Engineering" class="md-header__button md-logo" aria-label="TripEase : UCS503 Software Engineering" data-md-component="logo">
+      
+  <img src="../assets/tiet-logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TripEase : UCS503 Software Engineering
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Requirements
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Mxnrxjj/ucs503p-202627-TripEase" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ucs503p-202627-TripEase
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="TripEase : UCS503 Software Engineering" class="md-nav__button md-logo" aria-label="TripEase : UCS503 Software Engineering" data-md-component="logo">
+      
+  <img src="../assets/tiet-logo.svg" alt="logo">
+
+    </a>
+    TripEase : UCS503 Software Engineering
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Mxnrxjj/ucs503p-202627-TripEase" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ucs503p-202627-TripEase
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../activity-diagram/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Activity Diagram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../criteria-for-project-selection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Criteria for Project Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../diagrams/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TripEase Diagrams
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Requirements
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Requirements
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Scope
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-who-and-what-uses-the-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Who and what uses the system
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-functional-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Functional requirements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Functional requirements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#accounts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accounts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#creating-a-trip" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating a trip
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#managing-trips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Managing trips
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#map-feasibility-and-budget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Map, feasibility and budget
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#still-to-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Still to do
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-non-functional-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Non-functional requirements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Non-functional requirements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-product-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Product requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-organisational-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Organisational requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-external-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 External requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-domain-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Domain requirements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-use-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Use cases
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Use cases">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#uc-1-sign-up-sign-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UC-1: Sign up / sign in
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uc-2-create-a-trip" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UC-2: Create a trip
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uc-3-edit-the-itinerary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UC-3: Edit the itinerary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uc-4-edit-cities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UC-4: Edit cities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uc-5-replace-a-place" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UC-5: Replace a place
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uc-6-view-map-and-budget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UC-6: View map and budget
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uc-7-manage-trips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UC-7: Manage trips
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-assumptions-and-limits-of-the-current-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Assumptions and limits of the current build
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Use Cases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../journals/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Journals
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Journals
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../journals/1024030709-nimitt/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1024030709 nimitt
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_1" id="__nav_8_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    1024030709 nimitt
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030709-nimitt/w1-requirements-and-data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 1 : Requirements that Did Not Match the Proposal, and the Data Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030709-nimitt/w2-use-cases-and-activity-diagram/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 2 : An Activity Diagram that Did Not Follow the Course Notation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030709-nimitt/w3-unit-tests-and-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 3 : Unit Tests for the Formatting Helpers, and the Shared UI and Sign-in Screens
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030709-nimitt/w4-report-and-cleanup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 4 : Preparing the Mid-Semester Report and Cleaning Up the Repository
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../journals/1024030712-manraj/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1024030712 manraj
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    1024030712 manraj
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030712-manraj/w1-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 1 : Protecting the API Routes and the Data, and the Firebase Layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030712-manraj/w2-city-planner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 2 : An AI City Planner that Cannot Break the App
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030712-manraj/w3-feasibility-engine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 3 : A Feasibility Engine Built on Honest Estimates, and a Map that Never Guesses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030712-manraj/w4-places-generator-budget-ci/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 4 : Places, Itineraries, API Routes, Saving Trips, the Budget Engine and CI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../journals/1024030714-vatsal/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1024030714 vatsal
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_3" id="__nav_8_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    1024030714 vatsal
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030714-vatsal/w1-draft-storage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 1 : The Landing Page, and Keeping a Visitor's Trip Idea Alive through Sign-up
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030714-vatsal/w2-wizard-and-generation-screen/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 2 : The Wizard Steps, and a Generation Screen that Shows Only Real Progress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030714-vatsal/w3-dashboard-and-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 3 : A Dashboard that Updates Live, the Trip Page and the Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../journals/1024030714-vatsal/w4-budget-map-validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Week 4 : The Budget Panel, the Map and the Validation Schemas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="requirements">Requirements</h1>
+<p>This page has the requirements for TripEase as of the mid-semester evaluation. We follow the classification from the course: functional requirements, non-functional requirements (product, organisational and external) and domain requirements. Every requirement has an ID so we can refer to it in the report. "Shall" marks a mandatory requirement. "Done" means it works in the current build and "Planned" means we are doing it before the final submission.</p>
+<h2 id="1-scope">1. Scope</h2>
+<p>TripEase is meant to replace the usual mix of WhatsApp chats, notes, Google Maps and a spreadsheet that people use to plan a trip. The itinerary, the map and the budget are all part of one trip, so when you change one the others update too.</p>
+<p>What it does not do: it does not book anything and it does not show live prices. All costs in the app are estimates.</p>
+<p>One thing changed from the proposal. In the proposal we kept AI-generated itineraries out of scope. In iteration 4 we ended up using an AI model for one small part, which is deciding how many days to spend in each city. It does not pick places or prices. We check its answer with our own rules, and if the AI is down or gives a bad answer we use a normal (non-AI) planner instead. So the app still works without it.</p>
+<h2 id="2-who-and-what-uses-the-system">2. Who and what uses the system</h2>
+<table>
+<thead>
+<tr>
+<th>Actor</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Traveller</td>
+<td>The user. Makes trips, edits them, looks at the map and budget. Has to be signed in for everything except the landing page.</td>
+</tr>
+<tr>
+<td>Firebase Authentication</td>
+<td>Sign-up and sign-in (email/password or Google).</td>
+</tr>
+<tr>
+<td>Cloud Firestore</td>
+<td>Where users and trips are stored.</td>
+</tr>
+<tr>
+<td>Places provider</td>
+<td>Gives us hotels, sights, restaurants and nightlife. Google Places, or our demo data if there is no key.</td>
+</tr>
+<tr>
+<td>AI provider</td>
+<td>Suggests the city split. Groq, or a mock for testing.</td>
+</tr>
+<tr>
+<td>OpenStreetMap</td>
+<td>Map tiles.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-functional-requirements">3. Functional requirements</h2>
+<p>These say what the system does, how it reacts to inputs and how it behaves in different situations.</p>
+<h3 id="accounts">Accounts</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FR-1</td>
+<td>The system shall let a user sign up and sign in with an email and password.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>FR-2</td>
+<td>The system shall let a user sign in with Google.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>FR-3</td>
+<td>The system shall let a user sign out.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>FR-4</td>
+<td>The system shall allow only signed-in users to open the dashboard and trip pages.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>FR-5</td>
+<td>If a user starts a trip on the landing page and then signs up, the system shall keep what they entered.</td>
+<td>Done</td>
+</tr>
+</tbody>
+</table>
+<h3 id="creating-a-trip">Creating a trip</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FR-6</td>
+<td>The system shall let a user create a trip through a wizard with these steps: destination, dates, budget and currency, who is travelling, travel style, and a final review.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>FR-7</td>
+<td>The system shall check what the user enters in the wizard and show an error if a value is not allowed (the limits are in NFR-11).</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>FR-8</td>
+<td>The system shall decide which cities to visit and how many days each one gets.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>FR-9</td>
+<td>The system shall accept a city plan only if the days add up to the trip length, no city is repeated, every city gets at least 1 day, there are not more than 8 cities, and there are no more cities than days.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>FR-10</td>
+<td>If the AI gives a plan that is broken or breaks FR-9, the system shall ask it once more. If the AI fails, takes too long, or is still wrong, the system shall use the non-AI planner. The trip shall record which planner was used.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>FR-11</td>
+<td>The system shall build a day-by-day plan with a hotel for each city and meals and activities for each day.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>FR-12</td>
+<td>The system shall show where each place came from. A place without a real source shall be marked "Demo data".</td>
+<td>Done</td>
+</tr>
+</tbody>
+</table>
+<h3 id="managing-trips">Managing trips</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FR-13</td>
+<td>The dashboard shall show the user's own trips and let the user open or delete one.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>FR-14</td>
+<td>The system shall let a user rename a trip from its trip page.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>FR-15</td>
+<td>The system shall let a user add, edit, remove and reorder activities. Reordering is by drag and drop.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>FR-16</td>
+<td>The system shall let a user change a city's hotel and swap an activity with a place picked from search.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>FR-17</td>
+<td>The system shall let a user add, remove, rename and re-time cities. The days are rebalanced and FR-9 is checked again.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>FR-18</td>
+<td>The system shall save every change to the trip as soon as it is made.</td>
+<td>Done</td>
+</tr>
+</tbody>
+</table>
+<h3 id="map-feasibility-and-budget">Map, feasibility and budget</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FR-19</td>
+<td>The map shall show a pin for every place that has real coordinates, and a line joining each day's stops in order.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>FR-20</td>
+<td>The map shall be filterable by whole trip, city or day. Clicking a pin shall open that place in the roadmap and the other way round.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>FR-21</td>
+<td>The system shall estimate travel time between stops and between cities.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>FR-22</td>
+<td>The system shall mark a day red if it does not fit between 09:00 and 21:00, and amber if it is tight.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>FR-23</td>
+<td>The system shall show the budget split into flights, hotels, food, activities, transport, shopping, misc and buffer, and recalculate it after every edit.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>FR-24</td>
+<td>If the trip goes over budget, the system shall show up to three ways to save money.</td>
+<td>Done</td>
+</tr>
+</tbody>
+</table>
+<h3 id="still-to-do">Still to do</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FR-25</td>
+<td>The system shall let a user log what was actually spent and compare it with the plan.</td>
+<td>Planned</td>
+</tr>
+<tr>
+<td>FR-26</td>
+<td>The system shall let a user share a trip through a read-only link.</td>
+<td>Planned</td>
+</tr>
+<tr>
+<td>FR-27</td>
+<td>The system shall record the time from creating a trip to finishing it (TTCI), for the pilot study.</td>
+<td>Planned</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-non-functional-requirements">4. Non-functional requirements</h2>
+<p>These are constraints on how the system works. We have grouped them the way the course does: product, organisational and external. Where we could, we wrote them so they can be tested.</p>
+<h3 id="41-product-requirements">4.1 Product requirements</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Type</th>
+<th>Requirement</th>
+<th>How we check it</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NFR-1</td>
+<td>Reliability</td>
+<td>The app shall work end to end with no Google Places or Groq key, using demo data. If a Google Places search fails or comes back empty, the gap shall be filled with demo data instead of failing the whole trip.</td>
+<td>Run the app with no keys set.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>NFR-2</td>
+<td>Reliability</td>
+<td>Sign-in and saving a trip shall be available at least 99% of the time on staging during the pilot.</td>
+<td>Uptime during the pilot window.</td>
+<td>Planned</td>
+</tr>
+<tr>
+<td>NFR-3</td>
+<td>Efficiency (performance)</td>
+<td>A call to the AI shall time out after 20 seconds, after which the non-AI planner shall be used.</td>
+<td>Groq provider tests (timeout case) and planning pipeline tests (fallback).</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>NFR-4</td>
+<td>Efficiency (performance)</td>
+<td>Place searches shall be cached on the server for 10 minutes (500 entries at most), so the same search is not paid for twice.</td>
+<td>Cache unit tests.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>NFR-5</td>
+<td>Usability</td>
+<td>A first-time user shall be able to finish a 3-day trip with at least 5 stops in 15 minutes or less (median). This is the TTCI target from the proposal.</td>
+<td>Pilot study, 12 to 20 participants.</td>
+<td>Planned</td>
+</tr>
+<tr>
+<td>NFR-6</td>
+<td>Usability</td>
+<td>The layout shall adapt to phone and laptop screens, and both light and dark themes shall be supported.</td>
+<td>Check by hand in a narrow window.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>NFR-7</td>
+<td>Security</td>
+<td>Only the owner of a trip shall be able to read, edit or delete it, and the owner shall not be changeable after the trip is created. Everything else is denied by default (Firestore security rules).</td>
+<td>Security rules tests on the emulator, run in CI.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>NFR-8</td>
+<td>Security</td>
+<td>The routes for planning, generation, rebuilding and place search shall need a valid Firebase login token. The photo route shall accept only signed URLs.</td>
+<td>A request without a token gets 401 (403 for photos); token checks have unit tests.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>NFR-9</td>
+<td>Security</td>
+<td>The Google Places and Groq keys shall be read only on the server and never sent to the browser.</td>
+<td>Keys have no <code>NEXT_PUBLIC_</code> prefix.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>NFR-10</td>
+<td>Maintainability</td>
+<td>Places and AI shall sit behind interfaces, and all database access shall go through service files, so a provider can be switched without changing the rest of the code.</td>
+<td>Code review.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>NFR-11</td>
+<td>Data limits</td>
+<td>Destination shall be 2 to 80 characters, budget more than 0 and at most 100,000,000, travellers 1 to 20, travel styles 1 to 8, currency one of INR, USD, EUR or GBP, the end date shall not be before the start date, and a trip shall have at most 8 cities.</td>
+<td>Zod schemas in the API routes, the wizard's date check, and the plan checks (FR-9).</td>
+<td>Done</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42-organisational-requirements">4.2 Organisational requirements</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Type</th>
+<th>Requirement</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NFR-12</td>
+<td>Implementation</td>
+<td>The app shall be built with Next.js, React and TypeScript, with Firebase for login and storage and no separate backend server. Server-side work shall be done in Next.js API routes.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>NFR-13</td>
+<td>Standards (process)</td>
+<td>Every push shall run lint, unit tests, the security rules tests and a production build on GitHub Actions. Work shall be done on separate branches and merged into <code>main</code>.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>NFR-14</td>
+<td>Delivery</td>
+<td>Every merge into <code>main</code> shall be deployed automatically to a staging site on Vercel.</td>
+<td>Done</td>
+</tr>
+</tbody>
+</table>
+<h3 id="43-external-requirements">4.3 External requirements</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Type</th>
+<th>Requirement</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NFR-15</td>
+<td>Interoperability</td>
+<td>The map shall use OpenStreetMap tiles with the attribution their usage policy asks for, and places shall be fetched through the provider interface so Google Places can be used when a key is given.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>NFR-16</td>
+<td>Ethical</td>
+<td>Travel times, distances and costs shall always be labelled as estimates, and a place shall never be shown as verified unless it has a real source.</td>
+<td>Done</td>
+</tr>
+<tr>
+<td>NFR-17</td>
+<td>Privacy</td>
+<td>A trip shall be visible only to its owner. The pilot shall not collect location history or contact details, and participants shall be told what is recorded.</td>
+<td>Done (trips) / Planned (pilot)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-domain-requirements">5. Domain requirements</h2>
+<p>These come from the travel and budgeting domain. If they are wrong, the output looks wrong to anyone who has planned a trip.</p>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DR-1</td>
+<td>A sightseeing day shall be measured against a 09:00 to 21:00 window. Time at places, travel between them and a buffer for queues all count towards it.</td>
+</tr>
+<tr>
+<td>DR-2</td>
+<td>The budget shall add a small fixed daily allowance (500) for local transport, a miscellaneous amount of 4% of the other costs, and a buffer of 5% of the user's budget, with a minimum of 3000.</td>
+</tr>
+<tr>
+<td>DR-3</td>
+<td>The trip shall be priced for the whole group. Flights shall be multiplied by the number of travellers, and the other costs are for the group as a whole.</td>
+</tr>
+<tr>
+<td>DR-4</td>
+<td>The stops in a day shall be visited nearest-first starting from the hotel, so the day does not zigzag across the city.</td>
+</tr>
+<tr>
+<td>DR-5</td>
+<td>A change of city shall appear as its own travel step on the arrival day, with a mode and a duration.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6-use-cases">6. Use cases</h2>
+<h3 id="uc-1-sign-up-sign-in">UC-1: Sign up / sign in</h3>
+<p>Actors: Traveller, Firebase Authentication</p>
+<ol>
+<li>The user opens sign-in or sign-up.</li>
+<li>They enter email and password, or pick Google.</li>
+<li>Firebase checks it and gives back a token.</li>
+<li>They land on the dashboard.</li>
+</ol>
+<p>If the details are wrong, an error is shown and they stay on the same page.</p>
+<h3 id="uc-2-create-a-trip">UC-2: Create a trip</h3>
+<p>Actors: Traveller, AI provider, places provider. The user must be signed in.</p>
+<ol>
+<li>The user goes through the wizard.</li>
+<li>The app asks the AI how to split the days between cities.</li>
+<li>The split is checked against FR-9.</li>
+<li>Places are fetched for each city and the days are filled in, checking that each day fits.</li>
+<li>The budget is worked out and the trip is saved.</li>
+<li>The trip page opens with the roadmap, map and budget.</li>
+</ol>
+<p>If the AI fails at step 2 or 3, the non-AI planner makes the split and the loading screen tells the user.</p>
+<h3 id="uc-3-edit-the-itinerary">UC-3: Edit the itinerary</h3>
+<p>Actor: Traveller (owner of the trip)</p>
+<ol>
+<li>The user adds, edits, removes or drags an activity, or changes a hotel.</li>
+<li>The change is saved.</li>
+<li>The budget, warnings and map update.</li>
+</ol>
+<h3 id="uc-4-edit-cities">UC-4: Edit cities</h3>
+<p>Actors: Traveller, places provider</p>
+<ol>
+<li>The user opens "Edit cities" and makes changes.</li>
+<li>The days are rebalanced and FR-9 is checked.</li>
+<li>The server checks it again and only rebuilds the cities that are new or changed. Cities that weren't touched keep their activities.</li>
+</ol>
+<p>If a rule is broken, the problem is shown and nothing is saved.</p>
+<h3 id="uc-5-replace-a-place">UC-5: Replace a place</h3>
+<p>Actors: Traveller, places provider</p>
+<ol>
+<li>From an activity, the user searches for a place.</li>
+<li>Matching places come back from the provider.</li>
+<li>The user picks one and it replaces the activity.</li>
+</ol>
+<p>If the live search fails, demo results are shown with a message saying so.</p>
+<h3 id="uc-6-view-map-and-budget">UC-6: View map and budget</h3>
+<p>Actors: Traveller, OpenStreetMap</p>
+<ol>
+<li>The user opens the map or budget tab.</li>
+<li>The map shows the places and the day lines, for the whole trip, a city or a day.</li>
+<li>The budget tab shows each category, and savings tips if the trip is over budget.</li>
+</ol>
+<h3 id="uc-7-manage-trips">UC-7: Manage trips</h3>
+<p>Actor: Traveller</p>
+<ol>
+<li>The user opens the dashboard and sees their trips.</li>
+<li>They open one, or delete one from its card.</li>
+<li>On the trip page they can rename it.</li>
+</ol>
+<h2 id="7-assumptions-and-limits-of-the-current-build">7. Assumptions and limits of the current build</h2>
+<ul>
+<li>Travel times are worked out from distance, not from a routing service. We don't fetch opening hours either.</li>
+<li>Google Places charges per request, which is why it is optional and the results are cached.</li>
+<li>The Google Places provider is written against the documented API but we have not tested it with a live key yet. All our tests use the demo provider.</li>
+<li>The 3000 minimum buffer and the 500 daily transport allowance are fixed numbers in the code. They are not converted when the trip is in USD, EUR or GBP, so they are too big for those currencies.</li>
+<li>A Firebase login token that has been revoked still works until it expires (up to an hour), because we check tokens against Google's public keys and not with the Firebase Admin SDK.</li>
+</ul>
+
+
+
+
+
+
+
+  
+    
+  
+  
+
+
+  <aside class="md-source-file">
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Last update">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="October 13, 2026 06:23:30 UTC">October 13, 2026</span>
+  </span>
+
+    
+    
+    
+      
+  
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Contributors">
+      
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4"/></svg>
+      
+    </span>
+    <nav>
+      
+        <a href="mailto:singhmanraj620@gmail.com">Mxnrxjj</a>
+    </nav>
+  </span>
+
+    
+    
+  </aside>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../diagrams/" class="md-footer__link md-footer__link--prev" aria-label="Previous: TripEase Diagrams">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                TripEase Diagrams
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../use-cases/" class="md-footer__link md-footer__link--next" aria-label="Next: Use Cases">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Use Cases
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2025 <a href='https://bvraghav.com/'>Raghav B. Venkataramaiyer</a> &lt;<code style='color:inherit; background:transparent'>bv.raghav</code>&gt;
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/Mxnrxjj/ucs503p-202627-TripEase" target="_blank" rel="noopener" title="TripEase on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.footer", "header.autohide", "content.tabs.link", "navigation.tracking", "navigation.top", "toc.integrate", "content.tooltips"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://unpkg.com/katex@0/dist/katex.min.js"></script>
+      
+        <script src="../javascript/arithmatex.js"></script>
+      
+    
+  </body>
+</html>
