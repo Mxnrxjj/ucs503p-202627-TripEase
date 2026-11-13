@@ -69,7 +69,7 @@ The **has** relationship is partly redundant. A day already points to its city, 
 
 | Entity | Attribute | Kind | Parts |
 |---|---|---|---|
-| Trip | `preferences` | Multivalued | One or more travel styles: beaches, food, culture, adventure, nightlife, shopping, nature, relaxation |
+| Trip | `preferences` | Multivalued | Zero to eight travel styles (optional): beaches, food, culture, adventure, nightlife, shopping, nature, relaxation |
 | Budget | `categories` | Composite | Eight amounts: flights, hotels, food, activities, transport, shopping, misc, buffer |
 | City Plan | `allocations` | Composite and multivalued | A list with one entry per city, each with a city name, a number of days and a short reason |
 | Hotel, Activity | `location` | Composite | `lat`, `lng` |

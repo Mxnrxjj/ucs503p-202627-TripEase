@@ -248,7 +248,7 @@ export function StyleStep({ data, setData }: { data: WizardData; setData: SetDat
 
   return (
     <div>
-      <StepHeading title="What's your travel style?" subtitle="Pick as many as you like." />
+      <StepHeading title="What's your travel style?" subtitle="Optional. Pick as many as you like, or skip this." />
       <div className="flex flex-wrap gap-2.5">
         {TRAVEL_STYLES.map((s) => (
           <Chip key={s.id} selected={data.preferences.includes(s.id)} onClick={() => toggle(s.id)}>

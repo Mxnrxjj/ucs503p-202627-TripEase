@@ -107,7 +107,7 @@ In the flows, **AA** is an actor action, **SR** is a system response and **SA** 
 **Exceptional flow**
 
 - **Step 4:** The destination is shorter than 2 characters, the end date is before the start date, the budget is not above 0, or there are no travellers. The "Next" button stays disabled.
-- **Steps 6 to 8:** A service fails, the session has expired, or the server rejects the details (for example, no travel style was chosen). The wizard shows the error message and goes back to the review step with the answers still filled in.
+- **Steps 6 to 8:** A service fails, the session has expired, or the server rejects the details. The wizard shows the error message and goes back to the review step with the answers still filled in.
 
 ### UC-3: Edit the itinerary
 

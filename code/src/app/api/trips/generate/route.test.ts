@@ -65,6 +65,12 @@ describe("generating a trip", () => {
     expect(JSON.stringify(body)).not.toMatch(/\(demo\)|Central Hotel/);
   });
 
+  it("builds a trip when the traveller picked no travel style", async () => {
+    mockedProvider.mockReturnValue(goodResults());
+    const response = await post({ ...trip, preferences: [] });
+    expect(response.status).toBe(200);
+  });
+
   it.each([
     ["missing-key", 503, /isn't set up/],
     ["quota-exceeded", 503, /usage limit/],

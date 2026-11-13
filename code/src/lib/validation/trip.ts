@@ -30,7 +30,9 @@ export const tripDraftInputSchema = z.object({
   currency: z.enum(["INR", "USD", "EUR", "GBP"]),
   travelers: z.number().int().min(1).max(20),
   travelerType: travelerTypeSchema,
-  preferences: z.array(travelStyleSchema).min(1).max(8),
+  // Travel style is optional: the wizard lets a traveller skip it, and everything
+  // downstream (ranking, prompts, saved trips) already copes with none.
+  preferences: z.array(travelStyleSchema).max(8),
   includeFlights: z.boolean().optional(),
   origin: z.string().refine(isOriginAirport, { message: "Choose an airport from the list." }).optional(),
   quotedOn: quoteDaySchema.optional(),
