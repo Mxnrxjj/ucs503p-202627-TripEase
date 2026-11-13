@@ -5,6 +5,7 @@ import {
   BudgetStep,
   DestinationStep,
   ReviewStep,
+  StyleStep,
   flightsIncluded,
   flightsReady,
   type WizardData,
@@ -188,5 +189,38 @@ describe("ReviewStep flights", () => {
     unmount();
     render(<ReviewStep data={{ ...EMPTY, destination: "Japan", includeFlights: false }} />);
     expect(screen.getByText("Not included")).toBeInTheDocument();
+  });
+});
+
+describe("StyleStep", () => {
+  it("says the style is optional and starts with nothing picked", () => {
+    render(<StyleStep data={EMPTY} setData={() => {}} />);
+    expect(screen.getByText(/Optional/)).toBeInTheDocument();
+    for (const chip of screen.getAllByRole("button")) expect(chip).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("lets a style be picked and put back down again", () => {
+    function Styles() {
+      const [data, setData] = useState<WizardData>(EMPTY);
+      return (
+        <StyleStep
+          data={data}
+          setData={(patch) => setData((prev) => ({ ...prev, ...(typeof patch === "function" ? patch(prev) : patch) }))}
+        />
+      );
+    }
+    render(<Styles />);
+    const first = screen.getAllByRole("button")[0];
+    fireEvent.click(first);
+    expect(first).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(first);
+    expect(first).toHaveAttribute("aria-pressed", "false");
+  });
+});
+
+describe("ReviewStep style", () => {
+  it("says so when no style was picked", () => {
+    render(<ReviewStep data={EMPTY} />);
+    expect(screen.getByText("No preferences selected")).toBeInTheDocument();
   });
 });
