@@ -62,7 +62,7 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
   }, [tripId]);
 
   const suggestions = useMemo<SavingsSuggestion[]>(
-    () => (trip ? buildSavingsSuggestions(trip.cities, trip.days, trip.budget) : []),
+    () => (trip ? buildSavingsSuggestions(trip.cities, trip.days, trip.budget, trip.travelers) : []),
     [trip],
   );
 
@@ -334,6 +334,7 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
                   next={orderedDays[focusedIndex + 1] ?? null}
                   cityNameOf={(cityId) => sortedCities.find((c) => c.id === cityId)?.name ?? ""}
                   currency={trip.currency}
+                  travelers={trip.travelers}
                   plan={feasibility?.days[focusedDay.id] ?? null}
                   selectedPlaceId={selectedPlaceId}
                   onSelectPlace={handleSelectPlace}
@@ -355,6 +356,7 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
             cities={sortedCities}
             days={trip.days}
             currency={trip.currency}
+            travelers={trip.travelers}
             plans={feasibility?.days}
             selectedPlaceId={selectedPlaceId}
             onEditHotel={handleEditHotel}

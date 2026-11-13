@@ -7,6 +7,8 @@ import { analyzeTrip } from "@/lib/services/feasibility";
 import { buildThailandTrip } from "@/test-support/trip-fixture";
 import type { Trip } from "@/types/trip";
 import type { DayPlan } from "@/types/travel";
+import { activityCost, isPricedPerPerson } from "@/lib/services/budget-engine";
+import { formatMoney } from "@/lib/utils";
 
 let trip: Trip;
 let plans: Record<string, DayPlan>;
@@ -120,6 +122,7 @@ describe("DayPanel", () => {
         next={ordered[index + 1] ?? null}
         cityNameOf={(id) => cities().find((c) => c.id === id)?.name ?? ""}
         currency={trip.currency}
+        travelers={trip.travelers}
         plan={plans[day.id] ?? null}
         selectedPlaceId={null}
         {...h}
@@ -137,6 +140,22 @@ describe("DayPanel", () => {
     for (const a of day.activities.filter((x) => x.category !== "transport")) {
       expect(screen.getAllByText(a.name).length).toBeGreaterThan(0);
     }
+  });
+
+  it("totals the day for the whole party, and marks per-person prices", () => {
+    const { day } = renderDay(1, { travelers: 4 });
+    const groupTotal = day.activities.reduce((sum, a) => sum + activityCost(a, 4), 0);
+    expect(screen.getByText(`${formatMoney(groupTotal, trip.currency)} planned for 4 people`)).toBeInTheDocument();
+    const priced = day.activities.filter((a) => a.estimatedCost > 0 && isPricedPerPerson(a));
+    expect(priced.length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/per person/)).toHaveLength(priced.length);
+  });
+
+  it("says nothing about people or per-person prices for one traveller", () => {
+    const { day } = renderDay(1, { travelers: 1 });
+    const total = day.activities.reduce((sum, a) => sum + a.estimatedCost, 0);
+    expect(screen.getByText(`${formatMoney(total, trip.currency)} planned`)).toBeInTheDocument();
+    expect(screen.queryByText(/per person|people/)).not.toBeInTheDocument();
   });
 
   it("does not show another day's places", () => {
@@ -193,6 +212,7 @@ describe("DayPanel", () => {
       city,
       cityNameOf: () => city.name,
       currency: trip.currency,
+      travelers: trip.travelers,
       selectedPlaceId: null,
       ...h,
     };
@@ -207,7 +227,7 @@ describe("DayPanel", () => {
 
 describe("StaysPanel", () => {
   it("shows each city's hotel and nights, and says travel times are estimates", () => {
-    render(<StaysPanel cities={cities()} days={days()} currency={trip.currency} plans={plans} selectedPlaceId={null} onEditHotel={vi.fn()} />);
+    render(<StaysPanel cities={cities()} days={days()} currency={trip.currency} travelers={trip.travelers} plans={plans} selectedPlaceId={null} onEditHotel={vi.fn()} />);
     expect(screen.getByText(/estimates, not live routes/i)).toBeInTheDocument();
     for (const city of cities()) {
       const section = screen.getByRole("region", { name: city.name });
@@ -216,7 +236,7 @@ describe("StaysPanel", () => {
   });
 
   it("shows how you get to a city only where there is a transfer", () => {
-    render(<StaysPanel cities={cities()} days={days()} currency={trip.currency} plans={plans} selectedPlaceId={null} onEditHotel={vi.fn()} />);
+    render(<StaysPanel cities={cities()} days={days()} currency={trip.currency} travelers={trip.travelers} plans={plans} selectedPlaceId={null} onEditHotel={vi.fn()} />);
     const [first, second] = cities();
     expect(screen.queryByRole("list", { name: `Getting to ${first.name}` })).not.toBeInTheDocument();
     const transfer = screen.getByRole("list", { name: `Getting to ${second.name}` });
@@ -225,7 +245,7 @@ describe("StaysPanel", () => {
 
   it("edits the right city's hotel", () => {
     const onEditHotel = vi.fn();
-    render(<StaysPanel cities={cities()} days={days()} currency={trip.currency} plans={plans} selectedPlaceId={null} onEditHotel={onEditHotel} />);
+    render(<StaysPanel cities={cities()} days={days()} currency={trip.currency} travelers={trip.travelers} plans={plans} selectedPlaceId={null} onEditHotel={onEditHotel} />);
     fireEvent.click(screen.getByRole("button", { name: new RegExp(`Edit hotel in ${cities()[1].name}`) }));
     fireEvent.change(screen.getByLabelText(/hotel name|name/i), { target: { value: "Another hotel" } });
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
@@ -233,7 +253,7 @@ describe("StaysPanel", () => {
   });
 
   it("copes with no analysis yet", () => {
-    render(<StaysPanel cities={cities()} days={days()} currency={trip.currency} plans={undefined} selectedPlaceId={null} onEditHotel={vi.fn()} />);
+    render(<StaysPanel cities={cities()} days={days()} currency={trip.currency} travelers={trip.travelers} plans={undefined} selectedPlaceId={null} onEditHotel={vi.fn()} />);
     expect(screen.getAllByRole("region")).toHaveLength(cities().length);
   });
 });

@@ -16,6 +16,7 @@ export function StaysPanel({
   cities,
   days,
   currency,
+  travelers,
   plans,
   selectedPlaceId,
   onEditHotel,
@@ -24,6 +25,7 @@ export function StaysPanel({
   cities: City[];
   days: TripDay[];
   currency: string;
+  travelers: number;
   plans?: Record<string, DayPlan>;
   selectedPlaceId: string | null;
   onEditHotel: (cityId: string, patch: Partial<City["hotel"]>) => void;
@@ -58,6 +60,7 @@ export function StaysPanel({
             <HotelCard
               city={city}
               currency={currency}
+              travelers={travelers}
               selected={selectedPlaceId === `hotel:${city.id}`}
               onEdit={(patch) => onEditHotel(city.id, patch)}
               className="self-start"

@@ -18,6 +18,7 @@ import {
   type ActivityFormValue,
 } from "./activity-editor-dialog";
 import { ActivityRow } from "./activity-row";
+import { activityCost, partySize } from "@/lib/services/budget-engine";
 
 const BLANK_ACTIVITY: ActivityFormValue = {
   name: "",
@@ -34,6 +35,7 @@ export function DayView({
   cityName,
   cityCountry,
   currency,
+  travelers,
   plan,
   selectedPlaceId,
   onSelectPlace,
@@ -47,6 +49,8 @@ export function DayView({
   cityName: string;
   cityCountry?: string | null;
   currency: string;
+  /** The party size: meal and sight prices are per person, so the day's total is for all of them. */
+  travelers: number;
   /** Derived travel + feasibility for this day. Absent until analysis runs. */
   plan?: DayPlan | null;
   selectedPlaceId?: string | null;
@@ -62,7 +66,8 @@ export function DayView({
   const [adding, setAdding] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
-  const dayTotal = day.activities.reduce((sum, a) => sum + a.estimatedCost, 0);
+  const dayTotal = day.activities.reduce((sum, a) => sum + activityCost(a, travelers), 0);
+  const people = partySize(travelers);
 
   // A city transfer is shown as travel, not as somewhere you visit, so it's
   // lifted out of the activity list rather than sitting in it as a card.
@@ -99,7 +104,7 @@ export function DayView({
           {plan ? <DayTimeSummary feasibility={plan.feasibility} /> : null}
         </div>
         <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-          {formatMoney(dayTotal, currency)} planned
+          {formatMoney(dayTotal, currency)} planned{people > 1 ? ` for ${people} people` : ""}
         </span>
       </div>
 
@@ -120,6 +125,7 @@ export function DayView({
                   ) : null}
                   <ActivityRow
                     activity={activity}
+                    travelers={travelers}
                     selected={selectedPlaceId === activity.id}
                     onSelect={() =>
                       onSelectPlace?.(selectedPlaceId === activity.id ? null : activity.id)

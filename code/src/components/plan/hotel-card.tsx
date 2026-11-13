@@ -5,6 +5,7 @@ import { useState } from "react";
 import { cn, formatMoney } from "@/lib/utils";
 import type { City } from "@/types/itinerary";
 import { HotelEditorDialog } from "@/components/roadmap/hotel-editor-dialog";
+import { hotelCost, roomsFor } from "@/lib/services/budget-engine";
 
 /**
  * Where a city's nights are spent, as one tappable card that opens the hotel
@@ -15,20 +16,24 @@ import { HotelEditorDialog } from "@/components/roadmap/hotel-editor-dialog";
 export function HotelCard({
   city,
   currency,
+  travelers,
   selected = false,
   onEdit,
   className,
 }: {
   city: City;
   currency: string;
+  /** The party size: the room price is paid for every room it needs. */
+  travelers: number;
   /** The map has this hotel selected. */
   selected?: boolean;
   onEdit: (patch: Partial<City["hotel"]>) => void;
   className?: string;
 }) {
   const [editing, setEditing] = useState(false);
-  const total = city.hotel.pricePerNight * city.hotel.nights;
+  const total = hotelCost(city.hotel, travelers);
   const nights = city.hotel.nights;
+  const rooms = roomsFor(travelers);
 
   // The trip ends the day it reaches this city, so there is nothing to book. The
   // id stays so a map click on this city's hotel still has somewhere to scroll.
@@ -64,8 +69,9 @@ export function HotelCard({
             <Pencil className="h-3 w-3 shrink-0 text-zinc-400 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" aria-hidden="true" />
           </span>
           <span className="text-xs text-zinc-500">
-            {formatMoney(city.hotel.pricePerNight, currency)}/night
-            {city.hotel.priceIsEstimate !== false ? " (est.)" : ""} · {nights} {nights === 1 ? "night" : "nights"} · {formatMoney(total, currency)}
+            {formatMoney(city.hotel.pricePerNight, currency)}/{rooms > 1 ? "room/night" : "night"}
+            {city.hotel.priceIsEstimate !== false ? " (est.)" : ""}
+            {rooms > 1 ? ` · ${rooms} rooms` : ""} · {nights} {nights === 1 ? "night" : "nights"} · {formatMoney(total, currency)}
             {city.hotel.isDemoData ? " · not verified" : ""}
           </span>
         </span>

@@ -18,17 +18,18 @@ const overBudget = () => ({ ...trip.budget, total: Math.round(trip.budget.estima
 
 describe("savings suggestions", () => {
   it("offers nothing while the trip is within its budget", () => {
-    expect(buildSavingsSuggestions(trip.cities, trip.days, trip.budget)).toEqual([]);
+    const within = { ...trip.budget, total: trip.budget.estimatedTotal };
+    expect(buildSavingsSuggestions(trip.cities, trip.days, within, trip.travelers)).toEqual([]);
   });
 
   it("each comes with the words to ask Travis to carry it out", () => {
-    const suggestions = buildSavingsSuggestions(trip.cities, trip.days, overBudget());
+    const suggestions = buildSavingsSuggestions(trip.cities, trip.days, overBudget(), trip.travelers);
     expect(suggestions.length).toBeGreaterThan(0);
     for (const s of suggestions) expect(s.askTravis.length).toBeGreaterThan(10);
   });
 
   it("names the real hotel city and the real activity it is about", () => {
-    const suggestions = buildSavingsSuggestions(trip.cities, trip.days, overBudget());
+    const suggestions = buildSavingsSuggestions(trip.cities, trip.days, overBudget(), trip.travelers);
     const hotel = suggestions.find((s) => s.kind === "hotel-downgrade");
     expect(hotel?.askTravis).toMatch(/cheaper, well-rated hotel in /);
     expect(trip.cities.some((c) => hotel?.askTravis.includes(c.name))).toBe(true);
@@ -41,7 +42,7 @@ describe("savings suggestions", () => {
   });
 
   it("claims no star rating for a hotel it has not looked up", () => {
-    const text = JSON.stringify(buildSavingsSuggestions(trip.cities, trip.days, overBudget()));
+    const text = JSON.stringify(buildSavingsSuggestions(trip.cities, trip.days, overBudget(), trip.travelers));
     expect(text).not.toMatch(/3-star/);
   });
 });
@@ -49,7 +50,7 @@ describe("savings suggestions", () => {
 describe("BudgetPanel", () => {
   const renderPanel = (onAskTravis = vi.fn()) => {
     const budget = overBudget();
-    render(<BudgetPanel budget={budget} suggestions={buildSavingsSuggestions(trip.cities, trip.days, budget)} onAskTravis={onAskTravis} />);
+    render(<BudgetPanel budget={budget} suggestions={buildSavingsSuggestions(trip.cities, trip.days, budget, trip.travelers)} onAskTravis={onAskTravis} />);
     return onAskTravis;
   };
 

@@ -121,7 +121,7 @@ These come from the travel and budgeting domain. If they are wrong, the output l
 |---|---|
 | DR-1 | A sightseeing day shall be measured against a 09:00 to 21:00 window. Time at places, travel between them and a buffer for queues all count towards it. |
 | DR-2 | The budget shall add a small fixed daily allowance (500) for local transport, a miscellaneous amount of 4% of the other costs, and a buffer of 5% of the user's budget, with a minimum of 3000. |
-| DR-3 | The trip shall be priced for the whole group. Flights shall be multiplied by the number of travellers, and the other costs are for the group as a whole. |
+| DR-3 | The trip shall be priced for the whole group. Flights shall be quoted for every traveller, hotels shall be charged for one room per two travellers (rounded up), meals and sights shall be paid once per traveller, and intercity transfers, local transport and shopping are costs for the group as a whole. |
 | DR-4 | The stops in a day shall be visited nearest-first starting from the hotel, so the day does not zigzag across the city. |
 | DR-5 | A change of city shall appear as its own travel step on the arrival day, with a mode and a duration. |
 
