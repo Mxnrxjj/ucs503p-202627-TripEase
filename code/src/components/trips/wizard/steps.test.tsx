@@ -3,9 +3,11 @@ import { useState } from "react";
 import { describe, expect, it } from "vitest";
 import {
   BudgetStep,
+  DatesStep,
   DestinationStep,
   ReviewStep,
   StyleStep,
+  budgetStepProblem,
   flightsIncluded,
   flightsReady,
   type WizardData,
@@ -222,5 +224,92 @@ describe("ReviewStep style", () => {
   it("says so when no style was picked", () => {
     render(<ReviewStep data={EMPTY} />);
     expect(screen.getByText("No preferences selected")).toBeInTheDocument();
+  });
+});
+
+describe("DatesStep messages", () => {
+  const TODAY = "2026-11-13";
+
+  function Dates({ start, end }: { start: string; end: string }) {
+    const [data, setData] = useState<WizardData>({ ...EMPTY, startDate: start, endDate: end });
+    return (
+      <DatesStep
+        today={TODAY}
+        data={data}
+        setData={(patch) => setData((prev) => ({ ...prev, ...(typeof patch === "function" ? patch(prev) : patch) }))}
+      />
+    );
+  }
+
+  it("shows nothing for good dates, and stops the start before today", () => {
+    render(<Dates start="2026-12-01" end="2026-12-08" />);
+    expect(screen.queryByText(/can't|Choose/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Start date")).toHaveAttribute("min", TODAY);
+  });
+
+  it("says why a start in the past can't be used", () => {
+    render(<Dates start="2026-11-01" end="2026-12-08" />);
+    expect(screen.getByText("The start date can't be in the past.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Start date")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("says why an end before the start can't be used, and clears once fixed", () => {
+    render(<Dates start="2026-12-10" end="2026-12-08" />);
+    expect(screen.getByText("The end date can't be before the start date.")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("End date"), { target: { value: "2026-12-12" } });
+    expect(screen.queryByText(/can't be before/)).not.toBeInTheDocument();
+  });
+
+  it("asks for a date that was cleared", () => {
+    render(<Dates start="2026-12-10" end="2026-12-12" />);
+    fireEvent.change(screen.getByLabelText("Start date"), { target: { value: "" } });
+    expect(screen.getByText("Choose a start date.")).toBeInTheDocument();
+  });
+});
+
+describe("BudgetStep messages", () => {
+  it.each([
+    ["-5000", "The budget must be at least ₹5,000."],
+    ["1", "The budget must be at least ₹5,000."],
+    ["", "Enter your total budget."],
+  ])("explains a budget of %j instead of only blocking Next", (budget, message) => {
+    render(<BudgetHarness budget={budget} />);
+    expect(screen.getByText(message)).toBeInTheDocument();
+    expect(screen.getByLabelText("Total budget")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("never previews a negative amount", () => {
+    render(<BudgetHarness budget="-5000" />);
+    expect(screen.queryByText("₹-5,000")).not.toBeInTheDocument();
+    expect(screen.getByText("₹0")).toBeInTheDocument();
+  });
+
+  it("uses the minimum in the trip's own currency, and no rupee preview for a bad amount", () => {
+    render(<BudgetHarness currency="USD" budget="60" />);
+    expect(screen.getByText("The budget must be at least $61.")).toBeInTheDocument();
+    expect(screen.queryByTestId("budget-inr")).not.toBeInTheDocument();
+  });
+
+  it("shows no message for a fine budget", () => {
+    render(<BudgetHarness budget="150000" />);
+    expect(screen.queryByText(/budget must|Enter your/)).not.toBeInTheDocument();
+  });
+
+  it("says an airport is needed while flights are included without one", () => {
+    render(<BudgetHarness destination="Thailand" />);
+    expect(screen.getByText("Choose the city you're flying from, or untick flights.")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox", { name: /flying from/i }), { target: { value: "BOM" } });
+    expect(screen.queryByText(/Choose the city you're flying from/)).not.toBeInTheDocument();
+  });
+});
+
+describe("budgetStepProblem", () => {
+  it("gives the reason the budget step is blocked, budget first, then the airport", () => {
+    expect(budgetStepProblem({ ...EMPTY, budget: "1", destination: "Japan" })).toBe("The budget must be at least ₹5,000.");
+    expect(budgetStepProblem({ ...EMPTY, destination: "Japan" })).toBe(
+      "Choose the city you're flying from, or untick flights.",
+    );
+    expect(budgetStepProblem({ ...EMPTY, destination: "Japan", flyingFrom: "DEL" })).toBeNull();
+    expect(budgetStepProblem({ ...EMPTY, destination: "India" })).toBeNull();
   });
 });

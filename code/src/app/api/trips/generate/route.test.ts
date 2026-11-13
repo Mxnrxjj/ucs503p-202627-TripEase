@@ -65,6 +65,14 @@ describe("generating a trip", () => {
     expect(JSON.stringify(body)).not.toMatch(/\(demo\)|Central Hotel/);
   });
 
+  it("refuses a trip longer than 30 days before looking up any place", async () => {
+    const provider = vi.fn();
+    mockedProvider.mockImplementation(provider);
+    const response = await post({ ...trip, startDate: "2027-03-01", endDate: "2027-12-31" });
+    expect(response.status).toBe(400);
+    expect(provider).not.toHaveBeenCalled();
+  });
+
   it("builds a trip when the traveller picked no travel style", async () => {
     mockedProvider.mockReturnValue(goodResults());
     const response = await post({ ...trip, preferences: [] });

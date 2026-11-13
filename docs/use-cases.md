@@ -106,7 +106,7 @@ In the flows, **AA** is an actor action, **SR** is a system response and **SA** 
 
 **Exceptional flow**
 
-- **Step 4:** The destination is shorter than 2 characters, the end date is before the start date, the budget is not above 0, or there are no travellers. The "Next" button stays disabled.
+- **Step 4:** No supported country is chosen, a date is missing, the start date is in the past, the end date is before the start date, the trip is longer than 30 days, the budget is below the minimum (5,000 rupees or the equivalent) or above the maximum, or flights are included without a starting city. The "Next" button stays disabled, and for the dates, the budget and the starting city a message under the field says what to fix.
 - **Steps 6 to 8:** A service fails, the session has expired, or the server rejects the details. The wizard shows the error message and goes back to the review step with the answers still filled in.
 
 ### UC-3: Edit the itinerary

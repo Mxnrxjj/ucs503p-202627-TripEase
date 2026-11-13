@@ -57,6 +57,23 @@ describe("planning the cities of a trip", () => {
     expect(response.status).toBe(400);
   });
 
+  it("refuses a trip longer than 30 days, and one that runs for years", async () => {
+    expect((await post({ ...trip, startDate: "2027-03-01", endDate: "2027-03-30" })).status).toBe(200);
+    expect((await post({ ...trip, startDate: "2027-03-01", endDate: "2027-03-31" })).status).toBe(400);
+    expect((await post({ ...trip, endDate: "9999-12-31" })).status).toBe(400);
+  });
+
+  it("still tells a backwards range apart from a bad one", async () => {
+    const response = await post({ ...trip, startDate: "2027-03-10", endDate: "2027-03-01" });
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toBe("End date must be on or after the start date.");
+  });
+
+  it("refuses a budget below the minimum", async () => {
+    const response = await post({ ...trip, budget: 1 });
+    expect(response.status).toBe(400);
+  });
+
   it("still refuses a request with no preferences field at all", async () => {
     const { preferences: _omitted, ...withoutPreferences } = trip;
     void _omitted;

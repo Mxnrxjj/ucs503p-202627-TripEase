@@ -4,6 +4,7 @@ import { TripPlannerWidget } from "@/components/landing/trip-planner-widget";
 import { readDraft } from "@/lib/draft-storage";
 
 const push = vi.fn();
+const TODAY = "2026-11-13";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }) }));
 
 const country = () => screen.getByRole("combobox", { name: "Where to?" });
@@ -15,15 +16,19 @@ beforeEach(() => {
 });
 
 describe("TripPlannerWidget", () => {
-  it("cannot be submitted until a country is chosen", () => {
-    render(<TripPlannerWidget />);
-    expect(submit()).toBeDisabled();
+  it("says a country is needed when submitted without one, and goes nowhere", () => {
+    render(<TripPlannerWidget today={TODAY} />);
+    expect(submit()).toBeEnabled();
+    expect(screen.queryByText("Choose a country to start.")).not.toBeInTheDocument();
 
-    fireEvent.change(country(), { target: { value: "Narnia" } });
-    expect(submit()).toBeDisabled();
+    fireEvent.click(submit());
+    expect(screen.getByText("Choose a country to start.")).toBeInTheDocument();
+    expect(country()).toHaveFocus();
+    expect(readDraft()).toBeNull();
+    expect(push).not.toHaveBeenCalled();
 
     fireEvent.change(country(), { target: { value: "japan" } });
-    expect(submit()).toBeEnabled();
+    expect(screen.queryByText("Choose a country to start.")).not.toBeInTheDocument();
   });
 
   it("keeps the chosen country, dates and budget for after sign-up, and goes there", () => {
@@ -43,11 +48,60 @@ describe("TripPlannerWidget", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("is not ready when the trip ends before it starts", () => {
-    render(<TripPlannerWidget />);
+  it("says when the trip ends before it starts, and saves nothing", () => {
+    render(<TripPlannerWidget today={TODAY} />);
     fireEvent.change(country(), { target: { value: "Japan" } });
-    fireEvent.change(screen.getByLabelText("To"), { target: { value: "2001-01-01" } });
-    expect(submit()).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("From"), { target: { value: "2027-01-10" } });
+    fireEvent.change(screen.getByLabelText("To"), { target: { value: "2027-01-05" } });
+    fireEvent.click(submit());
+    expect(screen.getByText("The end date can't be before the start date.")).toBeInTheDocument();
+    expect(screen.getByLabelText("To")).toHaveFocus();
+    expect(readDraft()).toBeNull();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("says when the trip is longer than 30 days", () => {
+    render(<TripPlannerWidget today={TODAY} />);
+    fireEvent.change(country(), { target: { value: "Japan" } });
+    fireEvent.change(screen.getByLabelText("From"), { target: { value: "2027-01-01" } });
+    fireEvent.change(screen.getByLabelText("To"), { target: { value: "2027-01-31" } });
+    fireEvent.click(submit());
+    expect(screen.getByText("A trip can be at most 30 days long. This one is 31.")).toBeInTheDocument();
+    expect(readDraft()).toBeNull();
+
+    fireEvent.change(screen.getByLabelText("To"), { target: { value: "2027-01-30" } });
+    fireEvent.click(submit());
+    expect(push).toHaveBeenCalledWith("/sign-up");
+  });
+
+  it("says when the trip starts in the past", () => {
+    render(<TripPlannerWidget today={TODAY} />);
+    fireEvent.change(country(), { target: { value: "Japan" } });
+    fireEvent.change(screen.getByLabelText("From"), { target: { value: "2026-11-12" } });
+    fireEvent.click(submit());
+    expect(screen.getByText("The start date can't be in the past.")).toBeInTheDocument();
+    expect(readDraft()).toBeNull();
+  });
+
+  it.each([
+    ["", "Enter your total budget."],
+    ["-5000", "The budget must be at least ₹5,000."],
+    ["1", "The budget must be at least ₹5,000."],
+  ])("refuses a budget of %j with a message instead of quietly replacing it", (budget, message) => {
+    render(<TripPlannerWidget today={TODAY} />);
+    fireEvent.change(country(), { target: { value: "Japan" } });
+    fireEvent.change(screen.getByLabelText("Budget (₹)"), { target: { value: budget } });
+    fireEvent.click(submit());
+    expect(screen.getByText(message)).toBeInTheDocument();
+    expect(screen.getByLabelText("Budget (₹)")).toHaveAttribute("aria-invalid", "true");
+    expect(readDraft()).toBeNull();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("keeps a fresh form free of error messages", () => {
+    render(<TripPlannerWidget today={TODAY} />);
+    fireEvent.change(screen.getByLabelText("Budget (₹)"), { target: { value: "1" } });
+    expect(screen.queryByText(/at least/)).not.toBeInTheDocument();
   });
 
   it("saves the draft as a supported country, never as the typed text", () => {

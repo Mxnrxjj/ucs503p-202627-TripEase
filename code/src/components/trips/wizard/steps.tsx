@@ -8,6 +8,7 @@ import { COUNTRIES } from "@/lib/countries";
 import { ORIGIN_AIRPORTS, indianAirport, isOriginAirport } from "@/lib/flights/airports";
 import { isDomestic } from "@/lib/flights/quote";
 import { toInr } from "@/lib/fx";
+import { MAX_TRIP_DAYS, budgetProblem, dateProblems, todayInputValue } from "@/lib/trip-input-checks";
 import { cn, formatMoney } from "@/lib/utils";
 import { TRAVEL_STYLES, TRAVELER_TYPES, type TravelerType, type TravelStyle } from "@/types/itinerary";
 import { StepHeading } from "./wizard-shell";
@@ -39,6 +40,13 @@ export function flightsIncluded(data: Pick<WizardData, "includeFlights" | "desti
 /** Flights can only be priced from a known airport, so one must be chosen when they're included. */
 export function flightsReady(data: Pick<WizardData, "includeFlights" | "destination" | "flyingFrom">): boolean {
   return !flightsIncluded(data) || isOriginAirport(data.flyingFrom);
+}
+
+const FLYING_FROM_MISSING = "Choose the city you're flying from, or untick flights.";
+
+/** Why the budget step can't move on yet, or null when it can. */
+export function budgetStepProblem(data: WizardData): string | null {
+  return budgetProblem(data.budget, data.currency) ?? (flightsReady(data) ? null : FLYING_FROM_MISSING);
 }
 
 /** The airports a trip can start from, A to Z, as "City (CODE)". */
@@ -84,24 +92,37 @@ export function DestinationStep({ data, setData }: { data: WizardData; setData: 
   );
 }
 
-export function DatesStep({ data, setData }: { data: WizardData; setData: SetData }) {
+export function DatesStep({
+  data,
+  setData,
+  today = todayInputValue(),
+}: {
+  data: WizardData;
+  setData: SetData;
+  /** Today as YYYY-MM-DD; the page passes the same value it checks the step with. */
+  today?: string;
+}) {
+  const problems = dateProblems(data.startDate, data.endDate, today);
   return (
     <div>
-      <StepHeading title="When are you travelling?" />
+      <StepHeading title="When are you travelling?" subtitle={`A trip can be up to ${MAX_TRIP_DAYS} days.`} />
       <div className="grid grid-cols-2 gap-4">
         <TextField
           id="start-date"
           label="Start date"
           type="date"
+          min={today}
           value={data.startDate}
+          error={problems.start}
           onChange={(e) => setData({ startDate: e.target.value })}
         />
         <TextField
           id="end-date"
           label="End date"
           type="date"
-          min={data.startDate}
+          min={data.startDate || today}
           value={data.endDate}
+          error={problems.end}
           onChange={(e) => setData({ endDate: e.target.value })}
         />
       </div>
@@ -112,6 +133,9 @@ export function DatesStep({ data, setData }: { data: WizardData; setData: SetDat
 const CURRENCIES = ["INR", "USD", "EUR", "GBP"] as const;
 
 export function BudgetStep({ data, setData }: { data: WizardData; setData: SetData }) {
+  const problem = budgetProblem(data.budget, data.currency);
+  // Only a usable amount is previewed: "₹-5,000" or a rupee figure for a typo helps nobody.
+  const amount = problem ? 0 : Number(data.budget);
   return (
     <div>
       <StepHeading title="What's your trip budget?" subtitle="An estimate is fine — you can fine-tune it later." />
@@ -138,16 +162,17 @@ export function BudgetStep({ data, setData }: { data: WizardData; setData: SetDa
             inputMode="numeric"
             min={0}
             value={data.budget}
+            error={problem}
             onChange={(e) => setData({ budget: e.target.value })}
           />
         </div>
       </div>
       <p className="mt-4 font-display text-3xl font-medium text-orange-600">
-        {formatMoney(Number(data.budget) || 0, data.currency)}
+        {formatMoney(amount, data.currency)}
       </p>
-      {data.currency !== "INR" && Number(data.budget) > 0 && (
+      {data.currency !== "INR" && amount > 0 && (
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400" data-testid="budget-inr">
-          ≈ {formatMoney(toInr(Number(data.budget), data.currency), "INR")}
+          ≈ {formatMoney(toInr(amount, data.currency), "INR")}
           <span className="ml-1">(approximate rate)</span>
         </p>
       )}
@@ -174,6 +199,7 @@ export function BudgetStep({ data, setData }: { data: WizardData; setData: SetDa
             id="flying-from"
             label="Flying from"
             hint="Fares are estimated from this airport to your first city."
+            error={flightsReady(data) ? null : FLYING_FROM_MISSING}
             value={data.flyingFrom ?? ""}
             onChange={(e) => setData({ flyingFrom: e.target.value || null })}
           >
