@@ -3,15 +3,11 @@ import { latLngSchema, ratingSchema, sourceRefSchema } from "@/lib/validation/pl
 import { travelStyleSchema } from "@/lib/validation/shared";
 import { isSupportedCountry } from "@/lib/countries";
 import { isOriginAirport } from "@/lib/flights/airports";
+import { MAX_BUDGET, budgetProblem, isRealDay, tripLengthProblem } from "@/lib/trip-input-checks";
 
 export { travelStyleSchema };
 
-/** A YYYY-MM-DD that is a real calendar day (`2027-02-30` is not). */
-const realIsoDay = (value: string) => {
-  const ms = Date.parse(`${value}T00:00:00Z`);
-  return !Number.isNaN(ms) && new Date(ms).toISOString().slice(0, 10) === value;
-};
-const quoteDaySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(realIsoDay, { message: "Not a real date." });
+const quoteDaySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(isRealDay, { message: "Not a real date." });
 
 /**
  * Zod schemas mirror the types in `@/types`. The itinerary generator's output
@@ -26,7 +22,7 @@ export const tripDraftInputSchema = z.object({
   destination: z.string().trim().min(2).max(80),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  budget: z.number().positive().max(100_000_000),
+  budget: z.number().positive().max(MAX_BUDGET),
   currency: z.enum(["INR", "USD", "EUR", "GBP"]),
   travelers: z.number().int().min(1).max(20),
   travelerType: travelerTypeSchema,
@@ -48,12 +44,25 @@ export const tripDraftInputSchema = z.object({
  * rebuilding a saved trip is checked against, and trips saved before the list
  * existed ("Bali, Indonesia") must keep working.
  */
-export const newTripInputSchema = tripDraftInputSchema.extend({
-  destination: z
-    .string()
-    .trim()
-    .refine(isSupportedCountry, { message: "Choose one of the supported countries." }),
-});
+export const newTripInputSchema = tripDraftInputSchema
+  .extend({
+    destination: z
+      .string()
+      .trim()
+      .refine(isSupportedCountry, { message: "Choose one of the supported countries." }),
+  })
+  // The same budget minimum and trip length the wizard asks for. New trips
+  // only, like the country rule above: older saved trips (a smaller budget, a
+  // longer stay) must still rebuild.
+  .superRefine((input, ctx) => {
+    const budget = budgetProblem(input.budget, input.currency);
+    if (budget) ctx.addIssue({ code: "custom", path: ["budget"], message: budget });
+
+    if (!isRealDay(input.startDate)) ctx.addIssue({ code: "custom", path: ["startDate"], message: "Not a real date." });
+    if (!isRealDay(input.endDate)) ctx.addIssue({ code: "custom", path: ["endDate"], message: "Not a real date." });
+    const length = tripLengthProblem(input.startDate, input.endDate);
+    if (length) ctx.addIssue({ code: "custom", path: ["endDate"], message: length });
+  });
 
 const activityCategorySchema = z.enum([
   "sightseeing",

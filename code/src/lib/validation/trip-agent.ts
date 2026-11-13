@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ACTIVITY_CATEGORY_ICON, type ActivityCategory } from "@/types/itinerary";
 import type { EditOperation } from "@/types/trip-agent";
+import { MAX_TRIP_DAYS } from "@/lib/trip-input-checks";
 import { travelStyleSchema } from "@/lib/validation/shared";
 import { budgetBreakdownSchema, citySchema, flightQuoteSchema, travelerTypeSchema, tripDaySchema } from "@/lib/validation/trip";
 
@@ -12,7 +13,8 @@ import { budgetBreakdownSchema, citySchema, flightQuoteSchema, travelerTypeSchem
 export const MAX_AGENT_MESSAGE_CHARS = 800;
 /** Recent turns only: older ones cost tokens and rarely matter to the next edit. */
 export const MAX_AGENT_HISTORY_MESSAGES = 10;
-export const MAX_TRIP_DAYS = 30;
+// One limit for making a trip and for editing one: see `trip-input-checks`.
+export { MAX_TRIP_DAYS };
 export const MAX_OPERATIONS = 8;
 /** Room for an answer about a place; the prompt asks for about 120 words, well inside this. */
 export const MAX_REPLY_CHARS = 1500;

@@ -16,20 +16,41 @@ export function TextField({
   label,
   id,
   hint,
+  error,
   className = "",
   ...props
 }: InputHTMLAttributes<HTMLInputElement> & {
   label: string;
   id: string;
   hint?: string;
+  /** Shown under the field in place of the hint, and marks the field invalid. */
+  error?: string | null;
 }) {
+  const describedBy = error ? `${id}-error` : hint ? `${id}-hint` : undefined;
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={id} className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
         {label}
       </label>
-      <Input id={id} className={className} {...props} />
-      {hint ? <p className="text-xs text-zinc-500">{hint}</p> : null}
+      <Input
+        id={id}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
+        className={cn(
+          error && "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-500/25",
+          className,
+        )}
+        {...props}
+      />
+      {error ? (
+        <p id={`${id}-error`} className="text-xs text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      ) : hint ? (
+        <p id={`${id}-hint`} className="text-xs text-zinc-500">
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -38,6 +59,7 @@ export function SelectField({
   label,
   id,
   hint,
+  error,
   className = "",
   children,
   ...props
@@ -45,16 +67,38 @@ export function SelectField({
   label: string;
   id: string;
   hint?: string;
+  /** Shown under the field in place of the hint, and marks the field invalid. */
+  error?: string | null;
 }) {
+  const describedBy = error ? `${id}-error` : hint ? `${id}-hint` : undefined;
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={id} className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
         {label}
       </label>
-      <select id={id} className={cn(fieldClasses, "appearance-none", className)} {...props}>
+      <select
+        id={id}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
+        className={cn(
+          fieldClasses,
+          "appearance-none",
+          error && "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-500/25",
+          className,
+        )}
+        {...props}
+      >
         {children}
       </select>
-      {hint ? <p className="text-xs text-zinc-500">{hint}</p> : null}
+      {error ? (
+        <p id={`${id}-error`} className="text-xs text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      ) : hint ? (
+        <p id={`${id}-hint`} className="text-xs text-zinc-500">
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }

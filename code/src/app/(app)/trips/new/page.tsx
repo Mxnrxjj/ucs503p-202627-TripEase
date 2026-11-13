@@ -13,8 +13,8 @@ import {
   ReviewStep,
   StyleStep,
   TravelersStep,
+  budgetStepProblem,
   flightsIncluded,
-  flightsReady,
   type WizardData,
 } from "@/components/trips/wizard/steps";
 import { buildInitialWizardData, startingStep } from "@/components/trips/wizard/initial-data";
@@ -23,6 +23,7 @@ import { postAuthenticated } from "@/lib/api-client";
 import { clearDraft, clearDraftOrigin, readDraft, readDraftOrigin } from "@/lib/draft-storage";
 import { isSupportedCountry } from "@/lib/countries";
 import { toDateInputValue } from "@/lib/date";
+import { datesAreValid, todayInputValue } from "@/lib/trip-input-checks";
 import { saveGeneratedTrip } from "@/lib/services/trips";
 import type { CityPlan } from "@/types/planning";
 import type { GeneratedItinerary, TripDraftInput } from "@/types/trip";
@@ -39,14 +40,14 @@ function initialData(): WizardData {
   return buildInitialWizardData(readDraft(), defaultDates());
 }
 
-function stepIsValid(step: number, data: WizardData): boolean {
+function stepIsValid(step: number, data: WizardData, today: string): boolean {
   switch (step) {
     case 0:
       return isSupportedCountry(data.destination);
     case 1:
-      return Boolean(data.startDate && data.endDate && data.endDate >= data.startDate);
+      return datesAreValid(data.startDate, data.endDate, today);
     case 2:
-      return Number(data.budget) > 0 && flightsReady(data);
+      return budgetStepProblem(data) === null;
     case 3:
       return data.travelers >= 1;
     default:
@@ -139,7 +140,8 @@ export default function NewTripPage() {
   }
 
   const isLastStep = step === 5;
-  const canAdvance = stepIsValid(step, data);
+  const today = todayInputValue();
+  const canAdvance = stepIsValid(step, data, today);
 
   return (
     <WizardShell step={step}>
@@ -157,7 +159,7 @@ export default function NewTripPage() {
         </div>
       ) : null}
       {step === 0 && <DestinationStep data={data} setData={setData} />}
-      {step === 1 && <DatesStep data={data} setData={setData} />}
+      {step === 1 && <DatesStep data={data} setData={setData} today={today} />}
       {step === 2 && <BudgetStep data={data} setData={setData} />}
       {step === 3 && <TravelersStep data={data} setData={setData} />}
       {step === 4 && <StyleStep data={data} setData={setData} />}

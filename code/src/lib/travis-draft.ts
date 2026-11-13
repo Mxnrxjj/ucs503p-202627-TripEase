@@ -13,8 +13,8 @@ export function suggestionToDraft(suggestion: DestinationSuggestion): PartialDra
     destination: suggestion.destination,
     startDate: suggestion.startDate,
     endDate: suggestion.endDate,
-    // The wizard needs at least one style to generate; if Travis named none,
-    // leave the choice to the traveller rather than inventing one.
+    // A style is optional in the wizard; if Travis named none, leave the
+    // choice to the traveller rather than inventing one.
     ...(suggestion.styles.length > 0 ? { preferences: suggestion.styles } : {}),
   };
 }
