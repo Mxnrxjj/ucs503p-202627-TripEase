@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CountryCombobox } from "@/components/ui/country-combobox";
+import { COUNTRIES } from "@/lib/countries";
 
 const DEBOUNCE = 180;
 
@@ -216,6 +217,65 @@ describe("with a country already chosen", () => {
     fireEvent.keyDown(input(), { key: "Escape" });
     expect(input()).toHaveValue("Japan");
     expect(onChange).toHaveBeenLastCalledWith("Japan");
+  });
+});
+
+describe("typing a country's full name", () => {
+  it("lists that country first, for every supported country, in any letter case", () => {
+    render(<Harness />);
+    const failures: string[] = [];
+    for (const country of COUNTRIES) {
+      for (const typed of [country.name, country.name.toLowerCase(), country.name.toUpperCase()]) {
+        type(typed);
+        settle();
+        const first = options()[0];
+        if (!first || !first.startsWith(country.name)) failures.push(`${typed} -> ${first ?? "nothing"}`);
+      }
+    }
+    expect(failures).toEqual([]);
+  }, 20_000);
+
+  it("does not fall back to the default list, and still counts as chosen", () => {
+    const onChange = vi.fn();
+    render(<Harness onChange={onChange} />);
+    type("India");
+    settle();
+    expect(onChange).toHaveBeenLastCalledWith("India");
+    expect(options()[0]).toContain("India");
+    expect(options()).not.toEqual(COUNTRIES.slice(0, 8).map((c) => expect.stringContaining(c.name)));
+  });
+
+  it("still finds a country from a partial name or a city", () => {
+    render(<Harness />);
+    type("Indi");
+    settle();
+    expect(options()[0]).toContain("India");
+    type("Tokyo");
+    settle();
+    expect(options()[0]).toContain("Japan");
+  });
+
+  it("offers the whole list again after leaving with a typed country and coming back", () => {
+    render(<Harness />);
+    type("India");
+    settle();
+    fireEvent.blur(input());
+    fireEvent.focus(input());
+    settle();
+    expect(options()).toHaveLength(8);
+    expect(options()[0]).toContain("Thailand");
+  });
+
+  it("goes back to the whole list when the parent picks a country, or Escape restores one", () => {
+    render(<Harness />);
+    type("India");
+    settle();
+    fireEvent.click(screen.getByRole("button", { name: "Pick Italy for me" }));
+    fireEvent.focus(input());
+    settle();
+    expect(input()).toHaveValue("Italy");
+    expect(options()).toHaveLength(8);
+    expect(options()[0]).toContain("Thailand");
   });
 });
 

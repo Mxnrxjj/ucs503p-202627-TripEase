@@ -60,6 +60,10 @@ export function CountryCombobox({
   const [active, setActive] = useState(0);
   // The last country actually chosen, so abandoning an edit can bring it back.
   const [committed, setCommitted] = useState(value);
+  // True once the person has typed in the box since the last choice. Typing a
+  // country's full name also sets `value`, so "text equals value" alone can't
+  // tell a typed name from an untouched choice.
+  const [edited, setEdited] = useState(false);
 
   // Follow the parent when it sets a country itself (a "popular" chip, or a draft).
   const [seenValue, setSeenValue] = useState(value);
@@ -69,6 +73,7 @@ export function CountryCombobox({
     if (value && normalise(value) !== normalise(text)) {
       setText(value);
       setQuery("");
+      setEdited(false);
     }
   }
 
@@ -79,8 +84,9 @@ export function CountryCombobox({
   }, [text, debounceMs]);
 
   // With a country chosen and the text untouched, show the whole list rather
-  // than a list of one, so changing your mind is one click.
-  const untouched = value !== "" && normalise(text) === normalise(value);
+  // than a list of one, so changing your mind is one click. Once the person
+  // types (even a full name), the list follows what they typed.
+  const untouched = value !== "" && !edited && normalise(text) === normalise(value);
   const results = useMemo(() => searchCountries(untouched ? "" : query, MAX_RESULTS), [untouched, query]);
   const settled = untouched || query === text;
   const showEmpty = open && settled && results.length === 0 && text.trim() !== "";
@@ -88,6 +94,7 @@ export function CountryCombobox({
   function choose(country: Country) {
     setText(country.name);
     setQuery("");
+    setEdited(false);
     setOpen(false);
     setCommitted(country.name);
     onChange(country.name);
@@ -95,6 +102,7 @@ export function CountryCombobox({
 
   function handleType(next: string) {
     setText(next);
+    setEdited(true);
     setOpen(true);
     setActive(0);
     const exact = COUNTRIES.find((country) => normalise(country.name) === normalise(next));
@@ -134,6 +142,7 @@ export function CountryCombobox({
           // Abandoning an edit puts the earlier choice back.
           if (committed && value !== committed) {
             setText(committed);
+            setEdited(false);
             onChange(committed);
           }
         }
@@ -188,7 +197,11 @@ export function CountryCombobox({
           onChange={(event) => handleType(event.target.value)}
           onFocus={() => setOpen(true)}
           onClick={() => setOpen(true)}
-          onBlur={() => setOpen(false)}
+          onBlur={() => {
+            setOpen(false);
+            // Leaving with a country in the box: next time, offer the whole list again.
+            if (value !== "") setEdited(false);
+          }}
           onKeyDown={handleKeyDown}
           className={cn(
             "h-11 w-full rounded-xl border bg-white pl-10 pr-10 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus-visible:ring-2 dark:bg-zinc-900 dark:text-zinc-100",
