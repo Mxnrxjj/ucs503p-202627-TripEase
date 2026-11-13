@@ -42,7 +42,7 @@ export function HotelEditorDialog({
           <div className="grid grid-cols-2 gap-3">
             <TextField
               id="hotel-price"
-              label="Price per night"
+              label="Price per room, per night"
               type="number"
               min={0}
               value={price}

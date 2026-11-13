@@ -23,6 +23,7 @@ export function DayPanel({
   next,
   cityNameOf,
   currency,
+  travelers,
   plan,
   selectedPlaceId,
   onSelectPlace,
@@ -40,6 +41,7 @@ export function DayPanel({
   next: TripDay | null;
   cityNameOf: (cityId: string) => string;
   currency: string;
+  travelers: number;
   plan: DayPlan | null;
   selectedPlaceId: string | null;
   onSelectPlace: (id: string | null) => void;
@@ -66,7 +68,7 @@ export function DayPanel({
             </Button>
           ) : null}
         </div>
-        <HotelCard city={city} currency={currency} selected={selectedPlaceId === `hotel:${city.id}`} onEdit={onEditHotel} />
+        <HotelCard city={city} currency={currency} travelers={travelers} selected={selectedPlaceId === `hotel:${city.id}`} onEdit={onEditHotel} />
       </div>
 
       <DayView
@@ -76,6 +78,7 @@ export function DayPanel({
         cityName={city.name}
         cityCountry={city.country}
         currency={currency}
+        travelers={travelers}
         plan={plan}
         selectedPlaceId={selectedPlaceId}
         onSelectPlace={onSelectPlace}

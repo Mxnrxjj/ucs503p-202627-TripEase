@@ -1,5 +1,5 @@
 import type { BudgetBreakdown, BudgetCategory, SavingsSuggestion } from "@/types/budget";
-import type { ActivityCategory, City, TripDay } from "@/types/itinerary";
+import type { Activity, ActivityCategory, City, Hotel, TripDay } from "@/types/itinerary";
 import { fromInr } from "@/lib/fx";
 
 /**
@@ -32,6 +32,51 @@ const ACTIVITY_CATEGORY_TO_BUDGET: Record<string, BudgetCategory> = {
   nightlife: "activities",
 };
 
+/** How many people share one hotel room. */
+export const PEOPLE_PER_ROOM = 2;
+
+/** The budget buckets whose prices are per person (a meal, an entry ticket), so they are paid once per traveller. */
+const PER_PERSON_BUCKETS: ReadonlySet<BudgetCategory> = new Set(["food", "activities"]);
+
+/**
+ * The traveller count as a whole number of at least 1. A saved trip should
+ * always have one, but a missing or odd value must not turn every cost into 0
+ * or NaN.
+ */
+export function partySize(travelers: number): number {
+  return Number.isFinite(travelers) && travelers >= 1 ? Math.floor(travelers) : 1;
+}
+
+/** Rooms needed for the party: two people to a room, rounding up (3 people need 2 rooms). */
+export function roomsFor(travelers: number): number {
+  return Math.ceil(partySize(travelers) / PEOPLE_PER_ROOM);
+}
+
+/** What a hotel costs the whole party: the nightly room price, for every room, for every night. */
+export function hotelCost(hotel: Pick<Hotel, "pricePerNight" | "nights">, travelers: number): number {
+  return hotel.pricePerNight * hotel.nights * roomsFor(travelers);
+}
+
+/** The budget bucket an activity's cost goes in. */
+export function budgetCategoryOf(activity: Pick<Activity, "category">): BudgetCategory {
+  return ACTIVITY_CATEGORY_TO_BUDGET[activity.category] ?? "misc";
+}
+
+/**
+ * Whether an activity's price is per person. Meals and sights are. A transfer
+ * between cities is already priced for the whole party when it is made, and
+ * local transport, shopping and anything uncategorised are taken as one cost
+ * for the group.
+ */
+export function isPricedPerPerson(activity: Pick<Activity, "category">): boolean {
+  return PER_PERSON_BUCKETS.has(budgetCategoryOf(activity));
+}
+
+/** What an activity costs the whole party. */
+export function activityCost(activity: Pick<Activity, "category" | "estimatedCost">, travelers: number): number {
+  return isPricedPerPerson(activity) ? activity.estimatedCost * partySize(travelers) : activity.estimatedCost;
+}
+
 export interface ComputeBudgetInput {
   cities: City[];
   days: TripDay[];
@@ -53,14 +98,15 @@ export function computeBudgetBreakdown(input: ComputeBudgetInput): BudgetBreakdo
     buffer: 0,
   };
 
+  // Hotel prices are per room and night, meal and sight prices per person:
+  // both are multiplied up to the whole party here (see `hotelCost`, `activityCost`).
   for (const city of input.cities) {
-    categories.hotels += city.hotel.pricePerNight * city.hotel.nights;
+    categories.hotels += hotelCost(city.hotel, input.travelers);
   }
 
   for (const day of input.days) {
     for (const activity of day.activities) {
-      const bucket = ACTIVITY_CATEGORY_TO_BUDGET[activity.category] ?? "misc";
-      categories[bucket] += activity.estimatedCost;
+      categories[budgetCategoryOf(activity)] += activityCost(activity, input.travelers);
     }
     // A small daily allowance for local transport (taxis, tuk-tuks, metro)
     // that isn't tied to any single itinerary line item.
@@ -103,17 +149,18 @@ export function buildSavingsSuggestions(
   cities: City[],
   days: TripDay[],
   budget: BudgetBreakdown,
+  travelers: number,
 ): SavingsSuggestion[] {
   const suggestions: SavingsSuggestion[] = [];
   const overBy = budget.estimatedTotal - budget.total;
   if (overBy <= 0) return suggestions;
 
   // A city with no nights has no hotel to save on.
-  const priciestHotel = cities.filter((c) => c.hotel.nights > 0).sort(
-    (a, b) => b.hotel.pricePerNight * b.hotel.nights - a.hotel.pricePerNight * a.hotel.nights,
-  )[0];
+  const priciestHotel = cities
+    .filter((c) => c.hotel.nights > 0)
+    .sort((a, b) => hotelCost(b.hotel, travelers) - hotelCost(a.hotel, travelers))[0];
   if (priciestHotel && priciestHotel.hotel.pricePerNight > 0) {
-    const savings = Math.round(priciestHotel.hotel.pricePerNight * 0.3 * priciestHotel.hotel.nights);
+    const savings = Math.round(hotelCost(priciestHotel.hotel, travelers) * 0.3);
     suggestions.push({
       id: `hotel-${priciestHotel.id}`,
       kind: "hotel-downgrade",
@@ -133,7 +180,8 @@ export function buildSavingsSuggestions(
     )
     .sort((a, b) => b.activity.estimatedCost - a.activity.estimatedCost)[0];
   if (nonEssential) {
-    const savings = Math.round(nonEssential.activity.estimatedCost * 0.6);
+    // The price is per person; a shared tour saves on every ticket.
+    const savings = Math.round(activityCost(nonEssential.activity, travelers) * 0.6);
     suggestions.push({
       id: `activity-${nonEssential.activity.id}`,
       kind: "activity-swap",

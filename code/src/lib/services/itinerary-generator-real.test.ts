@@ -136,6 +136,29 @@ describe("choosing the best", () => {
     expect(itinerary.cities[0].hotel.name).toBe("Comfort Inn");
   });
 
+  it("lets a bigger party, which books more rooms, pay less for each one", async () => {
+    // 4 days is 3 nights. 40% of 1,00,000 over 3 nights is about 13,333 a room
+    // for two people (one room), but about 3,333 a room for eight (four rooms).
+    const hotelsByPrice = () =>
+      results({
+        hotel: [
+          ratedPlace("Grand Stay", 4.9, 5_000, { type: "hotel", price: { amount: 10_000, currency: "INR", isEstimate: true } }),
+          ratedPlace("Budget Inn", 4.3, 2_000, { type: "hotel", price: { amount: 3_000, currency: "INR", isEstimate: true } }),
+        ],
+      });
+    const couple = await generateItinerary({ ...draft, travelers: 2 }, oneCity, undefined, new RatedPlacesProvider(hotelsByPrice()));
+    const group = await generateItinerary(
+      { ...draft, travelers: 8, travelerType: "friends" },
+      oneCity,
+      undefined,
+      new RatedPlacesProvider(hotelsByPrice()),
+    );
+    expect(couple.cities[0].hotel.name).toBe("Grand Stay");
+    expect(group.cities[0].hotel.name).toBe("Budget Inn");
+    expect(couple.budget.categories.hotels).toBe(10_000 * 3);
+    expect(group.budget.categories.hotels).toBe(3_000 * 3 * 4);
+  });
+
   it("labels the hotel's price as an estimate, since Google gives only a price level", async () => {
     const itinerary = await generateItinerary(draft, oneCity, undefined, new RatedPlacesProvider(results()));
     expect(itinerary.cities[0].hotel.priceIsEstimate).toBe(true);

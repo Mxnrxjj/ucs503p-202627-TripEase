@@ -707,8 +707,10 @@ read-modify-write instead of a fan-out across subcollections.
   than a multi-city route. That's the honest fallback, not a bug — but it
   does mean the AI planner is what makes the app genuinely multi-country.
 - Token revocation isn't detected (see "API security" above).
-- Costs are treated as a flat total for the travelling party rather than
-  computed per-traveller (except flights, which scale by traveller count).
+- Group size is a simple rule, not a booking: a hotel is charged for one room
+  per two travellers (rounded up), meals and sights are paid per traveller,
+  flights are quoted per seat, and transfers, local transport and shopping
+  count once for the group.
 - The AI decides the city split, and Travis suggests destinations and the
   best months to go. Individual activities, meals and hotels are still chosen
   by the deterministic generator from the places provider, not by an LLM — see

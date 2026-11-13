@@ -5,7 +5,7 @@ import { getPlacesProvider } from "@/lib/services/places";
 import { PlacesProviderError } from "@/lib/services/places/errors";
 import { pickHotel, rankByQuality, withoutDuplicates } from "@/lib/services/places/ranking";
 import type { PlaceSearchParams, PlacesProvider } from "@/lib/services/places/provider";
-import { computeBudgetBreakdown } from "@/lib/services/budget-engine";
+import { computeBudgetBreakdown, roomsFor } from "@/lib/services/budget-engine";
 import {
   AVAILABLE_MINUTES,
   centroid,
@@ -483,10 +483,12 @@ export async function generateItinerary(
     Math.round((new Date(input.endDate).getTime() - new Date(input.startDate).getTime()) / 86_400_000) + 1,
   );
 
-  // What one night may cost, so a hotel is chosen to fit the trip rather than
-  // being the best-rated one in the city whatever it charges.
+  // What one room may cost a night, so a hotel is chosen to fit the trip rather
+  // than being the best-rated one in the city whatever it charges. A bigger
+  // party books more rooms out of the same share of the budget.
   const totalNights = Math.max(1, dayCount - 1);
-  const maxHotelPerNight = input.budget > 0 ? (input.budget * HOTEL_SHARE_OF_BUDGET) / totalNights : null;
+  const maxHotelPerNight =
+    input.budget > 0 ? (input.budget * HOTEL_SHARE_OF_BUDGET) / (totalNights * roomsFor(input.travelers)) : null;
 
   const cities: City[] = [];
   const days: TripDay[] = [];

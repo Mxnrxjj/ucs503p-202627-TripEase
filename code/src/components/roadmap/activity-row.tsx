@@ -5,10 +5,12 @@ import { CSS } from "@dnd-kit/utilities";
 import { ExternalLink, GripVertical, MapPin, MessageCircle, Pencil, Star, Trash2 } from "lucide-react";
 import { ACTIVITY_CATEGORY_ICON, type Activity } from "@/types/itinerary";
 import { Badge } from "@/components/ui";
+import { isPricedPerPerson, partySize } from "@/lib/services/budget-engine";
 import { cn, formatMoney } from "@/lib/utils";
 
 export function ActivityRow({
   activity,
+  travelers,
   selected = false,
   onSelect,
   onEdit,
@@ -16,6 +18,8 @@ export function ActivityRow({
   onAskTravis,
 }: {
   activity: Activity;
+  /** The party size; a per-person price says so when there is more than one traveller. */
+  travelers: number;
   selected?: boolean;
   onSelect?: () => void;
   onEdit: () => void;
@@ -92,6 +96,7 @@ export function ActivityRow({
           <span className="font-medium text-zinc-700 dark:text-zinc-300">
             {activity.estimatedCost > 0 ? formatMoney(activity.estimatedCost, activity.currency) : "Free"}
             {activity.estimatedCost > 0 && activity.priceIsEstimate !== false ? " (est.)" : ""}
+            {activity.estimatedCost > 0 && partySize(travelers) > 1 && isPricedPerPerson(activity) ? " per person" : ""}
           </span>
           {activity.durationMinutes > 0 ? (
             <span>

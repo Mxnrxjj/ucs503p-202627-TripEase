@@ -71,7 +71,7 @@ export function withoutDuplicates<T extends Place>(places: T[]): T[] {
 /**
  * Choose a hotel: the best-rated one that fits the budget.
  *
- * `maxPerNight` is what the trip can spend on a night. A hotel whose price is
+ * `maxPerNight` is what the trip can spend on one room for a night. A hotel whose price is
  * known (from the provider's coarse price level) and above it is passed over.
  * One with no known price is allowed, since not knowing is not the same as
  * expensive. If nothing fits, the best-rated one is used anyway: a traveller
