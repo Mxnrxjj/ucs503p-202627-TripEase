@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GroqAIProvider } from "@/lib/services/ai/groq-provider";
 import type { TravisRequest } from "@/lib/services/ai/provider";
-import { buildTravisSystemPrompt } from "@/lib/services/ai/travis-prompt";
+import { buildTravisSystemPrompt, TRAVIS_JSON_SCHEMA } from "@/lib/services/ai/travis-prompt";
 
 const request: TravisRequest = {
   today: "2026-03-10",
@@ -281,7 +281,28 @@ describe("Travis's brief", () => {
   });
 
   it("stops the headline repeating what the card already shows", () => {
-    expect(prompt).toMatch(/Do not repeat the destination name, the months or the cost/);
+    expect(prompt).toMatch(/Do not repeat the destination name, the place, the months or the cost/);
+  });
+
+  it("keeps the destination a country, and puts a city, island or region in focus", () => {
+    expect(prompt).toMatch(/Always the country, never a city, island or region/);
+    expect(prompt).toMatch(/`focus` is the one place inside that country/);
+    expect(prompt).toContain('"Goa" for India');
+    expect(prompt).toMatch(/only a place that really is inside `destination`/);
+    expect(prompt).toMatch(/Use null when you mean the country as a whole/);
+  });
+
+  it("lets a country come up twice only for different places", () => {
+    expect(prompt).toMatch(/A country may appear twice only if each suggestion has a different `focus`/);
+    expect(prompt).not.toMatch(/Suggest distinct countries/);
+  });
+
+  it("describes the place in the structured-output schema as required and nullable", () => {
+    const item = TRAVIS_JSON_SCHEMA.properties.suggestions.items;
+    expect(item.properties.focus).toEqual({ type: ["string", "null"] });
+    // Strict mode wants every property listed, so "no place" has to be a null.
+    expect(item.required).toContain("focus");
+    expect([...item.required].sort()).toEqual(Object.keys(item.properties).sort());
   });
 
   it("limits the model to travel styles the wizard can accept", () => {

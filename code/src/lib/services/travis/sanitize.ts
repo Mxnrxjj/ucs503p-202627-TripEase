@@ -1,4 +1,5 @@
-import { resolveCountry } from "@/lib/countries";
+import { resolveCountry, type Country } from "@/lib/countries";
+import { cleanFocus, destinationLabel, placeFromQuery } from "@/lib/trip-focus";
 import type { LlmTravisSuggestion, LlmTravisTurn } from "@/lib/validation/travis";
 import type { DestinationSuggestion, TravisReply } from "@/types/travis";
 import { suggestDates, windowLabel } from "./dates";
@@ -18,7 +19,7 @@ export function turnTexts(turn: LlmTravisTurn): string[] {
   return [
     turn.reply,
     ...turn.followUps,
-    ...turn.suggestions.flatMap((s) => [s.headline, s.costReason, s.weatherNote, s.watchOut ?? ""]),
+    ...turn.suggestions.flatMap((s) => [s.focus ?? "", s.headline, s.costReason, s.weatherNote, s.watchOut ?? ""]),
   ];
 }
 
@@ -55,6 +56,8 @@ export function redactPrices(turn: LlmTravisTurn): LlmTravisTurn {
     followUps: turn.followUps.filter((text) => !containsPriceClaim(text)),
     suggestions: turn.suggestions.map((s) => ({
       ...s,
+      // A place with an amount in it is not a place: the card keeps the country alone.
+      focus: s.focus && !containsPriceClaim(s.focus) ? s.focus : null,
       headline: clean(s.headline, GENERIC.headline),
       costReason: clean(s.costReason, GENERIC.costReason),
       weatherNote: clean(s.weatherNote, GENERIC.weatherNote),
@@ -84,7 +87,25 @@ function plainDestination(raw: string): string {
   return withoutQualifier.length >= 2 ? withoutQualifier : collapseSpaces(raw);
 }
 
-function toSuggestion(raw: LlmTravisSuggestion, index: number, today: string): DestinationSuggestion {
+/**
+ * The place inside the country this suggestion is about, or undefined when it
+ * is about the whole country.
+ *
+ * The model's own `focus` comes first. Failing that, a destination that is
+ * itself a place inside the country ("Goa" for India) still means that place,
+ * exactly as it does when a traveller types it into the country picker (those
+ * aliases are all usable places: see the test in `trip-focus.test.ts`). The
+ * model's own goes through `cleanFocus`, so a place that is only the country
+ * again, or isn't shaped like a place name, is no place at all: the suggestion
+ * stays about the country rather than carrying something the planner would reject.
+ */
+function focusOf(raw: LlmTravisSuggestion, country: Country): string | undefined {
+  const own = cleanFocus(raw.focus, country.name);
+  if (own) return own;
+  return placeFromQuery(plainDestination(raw.destination), country.name) ?? undefined;
+}
+
+function toSuggestion(raw: LlmTravisSuggestion, index: number, today: string, focus: string | undefined): DestinationSuggestion {
   const { startDate, endDate } = suggestDates({
     startMonth: raw.startMonth,
     endMonth: raw.endMonth,
@@ -95,8 +116,9 @@ function toSuggestion(raw: LlmTravisSuggestion, index: number, today: string): D
   // Callers have already dropped anything that isn't a supported country.
   const destination = resolveCountry(plainDestination(raw.destination))?.name ?? plainDestination(raw.destination);
   return {
-    id: `${slug(destination) || "place"}-${index}`,
+    id: `${slug(destinationLabel(destination, focus)) || "place"}-${index}`,
     destination,
+    ...(focus ? { focus } : {}),
     headline: raw.headline,
     startMonth: raw.startMonth,
     endMonth: raw.endMonth,
@@ -112,7 +134,11 @@ function toSuggestion(raw: LlmTravisSuggestion, index: number, today: string): D
   };
 }
 
-/** Normalise a (price-free) turn: supported countries only, once each, with derived windows and dates. */
+/**
+ * Normalise a (price-free) turn: supported countries only, with derived windows
+ * and dates. A place is offered once, so the same country may appear again only
+ * for a different place inside it ("Goa" and "Kerala", both India).
+ */
 export function toReply(turn: LlmTravisTurn, today: string): TravisReply {
   const seen = new Set<string>();
   const suggestions: DestinationSuggestion[] = [];
@@ -120,10 +146,11 @@ export function toReply(turn: LlmTravisTurn, today: string): TravisReply {
   for (const raw of turn.suggestions) {
     const country = resolveCountry(plainDestination(raw.destination));
     if (!country) continue; // not somewhere a trip can be planned, so not offered
-    const key = country.code;
-    if (seen.has(key)) continue; // the same country twice adds nothing
+    const focus = focusOf(raw, country);
+    const key = `${country.code}|${focus ? focus.toLowerCase() : ""}`;
+    if (seen.has(key)) continue; // the same place twice adds nothing
     seen.add(key);
-    suggestions.push(toSuggestion(raw, suggestions.length, today));
+    suggestions.push(toSuggestion(raw, suggestions.length, today, focus));
   }
 
   const followUps = [...new Set(turn.followUps.map(collapseSpaces).filter(Boolean))].slice(0, 3);

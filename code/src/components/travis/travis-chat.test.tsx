@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { STARTER_PROMPTS, TravisChat } from "@/components/travis/travis-chat";
 import { ApiError } from "@/lib/api-client";
 import { readDraft, readDraftOrigin } from "@/lib/draft-storage";
+import { toRequestMessages } from "@/lib/travis-client";
 import type { DestinationSuggestion, TravisChatMessage, TravisResponse } from "@/types/travis";
 
 const push = vi.fn();
@@ -485,6 +486,55 @@ describe("turning a suggestion into a trip", () => {
       preferences: ["beaches", "relaxation"],
     });
     expect(readDraftOrigin()).toEqual({ source: "travis", destination: "Bali, Indonesia", windowLabel: "Apr–Jun" });
+  });
+
+  it("hands over the place as well when the suggestion is about one", async () => {
+    const goa = suggestion({ id: "goa-india-0", destination: "India", focus: "Goa", windowLabel: "Nov–Feb" });
+    render(<TravisChat ask={vi.fn().mockResolvedValue(response({ suggestions: [goa] }))} />);
+    type("a beach week");
+    fireEvent.click(sendButton());
+
+    fireEvent.click(await screen.findByRole("button", { name: "Plan this trip to Goa, India" }));
+
+    expect(push).toHaveBeenCalledWith("/trips/new");
+    expect(readDraft()).toEqual({
+      destination: "India",
+      focus: "Goa",
+      startDate: "2027-04-01",
+      endDate: "2027-04-08",
+      preferences: ["beaches", "relaxation"],
+    });
+    expect(readDraftOrigin()).toEqual({ source: "travis", destination: "Goa, India", windowLabel: "Nov–Feb" });
+  });
+
+  it("still knows the place after the page is refreshed", async () => {
+    const goa = suggestion({ id: "goa-india-0", destination: "India", focus: "Goa" });
+    const first = render(<TravisChat ask={vi.fn().mockResolvedValue(response({ suggestions: [goa] }))} />);
+    type("a beach week");
+    fireEvent.click(sendButton());
+    await screen.findByRole("button", { name: "Plan this trip to Goa, India" });
+    first.unmount();
+
+    render(<TravisChat ask={vi.fn()} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Plan this trip to Goa, India" }));
+    expect(readDraft()).toMatchObject({ destination: "India", focus: "Goa" });
+  });
+
+  it("names the place, with its country, when the conversation goes on", async () => {
+    const goa = suggestion({ id: "goa-india-0", destination: "India", focus: "Goa" });
+    const ask = vi.fn().mockResolvedValueOnce(response({ suggestions: [goa] })).mockResolvedValueOnce(response({ suggestions: [] }));
+    render(<TravisChat ask={ask} />);
+    type("a beach week");
+    fireEvent.click(sendButton());
+    await screen.findByRole("button", { name: "Plan this trip to Goa, India" });
+
+    type("which is cheapest?");
+    fireEvent.click(sendButton());
+    await waitFor(() => expect(ask).toHaveBeenCalledTimes(2));
+
+    // `ask` is given the conversation; the page turns it into the wire form with `toRequestMessages`.
+    const wire = toRequestMessages(ask.mock.calls[1][0] as TravisChatMessage[]);
+    expect(wire.find((m) => m.role === "assistant")?.suggested).toEqual(["Goa, India"]);
   });
 
   it("does not invent a budget, currency or party size Travis never asked about", async () => {

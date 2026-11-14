@@ -14,6 +14,8 @@ export interface DemoDestination {
   /** Lower-case words that mean this place when a traveller types them. */
   keywords: string[];
   destination: string;
+  /** The place inside `destination` when the entry is about one ("Goa"), else left out. */
+  focus?: string;
   headline: string;
   suggestedDays: number;
   styles: TravelStyle[];
@@ -50,6 +52,7 @@ export const DEMO_DESTINATIONS: DemoDestination[] = [
   {
     keywords: ["bali", "indonesia"],
     destination: "Indonesia",
+    focus: "Bali",
     headline: "Bali: rice terraces, surf beaches and a strong food and wellness scene.",
     suggestedDays: 8,
     styles: ["beaches", "relaxation", "nature"],
@@ -113,6 +116,7 @@ export const DEMO_DESTINATIONS: DemoDestination[] = [
   {
     keywords: ["goa"],
     destination: "India",
+    focus: "Goa",
     headline: "Goa: easy beaches, seafood and a relaxed pace, reachable without a long flight.",
     suggestedDays: 5,
     styles: ["beaches", "nightlife", "relaxation"],

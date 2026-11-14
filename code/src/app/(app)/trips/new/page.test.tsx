@@ -2,6 +2,8 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { postAuthenticated } from "@/lib/api-client";
 import { saveDraft } from "@/lib/draft-storage";
+import { startTripFromSuggestion } from "@/lib/travis-draft";
+import type { DestinationSuggestion } from "@/types/travis";
 import { saveGeneratedTrip } from "@/lib/services/trips";
 import NewTripPage from "./page";
 
@@ -262,6 +264,76 @@ describe("a place inside the country", () => {
     render(<NewTripPage />);
     fireEvent.click(screen.getByRole("radio", { name: /Let TripEase choose/ }));
     expect(await generateFromReview()).not.toHaveProperty("focus");
+  });
+});
+
+describe("a trip started from a Travis suggestion", () => {
+  const fromTravis = (overrides: Partial<DestinationSuggestion> = {}): DestinationSuggestion => ({
+    id: "goa-india-0",
+    destination: "India",
+    focus: "Goa",
+    headline: "Beaches and seafood.",
+    startMonth: 11,
+    endMonth: 2,
+    windowLabel: "Nov–Feb",
+    costOutlook: "typical",
+    costReason: "Peak season.",
+    weatherNote: "Dry.",
+    watchOut: null,
+    suggestedDays: 5,
+    styles: ["beaches"],
+    startDate: day(30),
+    endDate: day(35),
+    ...overrides,
+  });
+
+  it("opens on the dates, saying where it came from, with the place named", () => {
+    startTripFromSuggestion(fromTravis());
+    render(<NewTripPage />);
+    expect(screen.getByText("Started from Travis: Goa, India")).toBeInTheDocument();
+    expect(screen.getByText("When are you travelling?")).toBeInTheDocument();
+  });
+
+  it("has the place waiting on the first step, as 'I know where I want to go'", () => {
+    startTripFromSuggestion(fromTravis());
+    render(<NewTripPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Back/ }));
+    expect(screen.getByRole("radio", { name: /I know where/ })).toBeChecked();
+    expect(screen.getByRole("textbox", { name: "Where in India?" })).toHaveValue("Goa");
+  });
+
+  it("plans the trip around the place, with the country as the destination", async () => {
+    vi.mocked(postAuthenticated).mockImplementation(async (path: string) =>
+      path === "/api/trips/plan" ? { plan: { cities: [] } } : { itinerary: {}, plan: { cities: [] } },
+    );
+    startTripFromSuggestion(fromTravis());
+    render(<NewTripPage />);
+    fireEvent.click(next()); // budget
+    fireEvent.click(next()); // travellers
+    fireEvent.click(next()); // style
+    fireEvent.click(next()); // review
+    expect(screen.getByText("Goa, India")).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Generate my trip/ }));
+    });
+    await waitFor(() => expect(postAuthenticated).toHaveBeenCalled());
+    expect(vi.mocked(postAuthenticated).mock.calls[0][1]).toMatchObject({ destination: "India", focus: "Goa" });
+  });
+
+  it("is the whole country, with 'Let TripEase choose the cities', when the suggestion had no place", () => {
+    startTripFromSuggestion(fromTravis({ focus: undefined }));
+    render(<NewTripPage />);
+    expect(screen.getByText("Started from Travis: India")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Back/ }));
+    expect(screen.getByRole("radio", { name: /Let TripEase choose/ })).toBeChecked();
+  });
+
+  it("is the whole country when the suggestion's place was no use", () => {
+    startTripFromSuggestion(fromTravis({ focus: "<b>Goa</b>" }));
+    render(<NewTripPage />);
+    expect(screen.getByText("Started from Travis: India")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Back/ }));
+    expect(screen.getByRole("radio", { name: /Let TripEase choose/ })).toBeChecked();
   });
 });
 

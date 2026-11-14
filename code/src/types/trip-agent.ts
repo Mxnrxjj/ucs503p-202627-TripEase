@@ -17,6 +17,13 @@ export interface AgentTrip {
   id: string;
   title: string;
   destination: string;
+  /**
+   * The place inside `destination` the traveller asked for when they made the
+   * trip ("Goa"), if they named one. What they asked for then, not a promise
+   * about what the trip is now: the cities are the truth, and an edit does not
+   * rewrite this. Shown to the model as background only.
+   */
+  focus?: string | null;
   startDate: string;
   endDate: string;
   dayCount: number;

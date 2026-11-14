@@ -172,6 +172,7 @@ export class MockAIProvider implements AIProvider {
     const window = wantsCheap ? d.cheap : d.best;
     return {
       destination: d.destination,
+      focus: d.focus ?? null,
       headline: d.headline,
       startMonth: window.startMonth,
       endMonth: window.endMonth,

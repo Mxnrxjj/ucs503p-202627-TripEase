@@ -71,6 +71,24 @@ describe("a good request", () => {
     expect(body.suggestions[0].startDate > today).toBe(true);
   });
 
+  it("sends a suggestion's place along with its country", async () => {
+    const body = await (await post(ask("Goa"))).json();
+    expect(body.suggestions[0]).toMatchObject({ destination: "India", focus: "Goa" });
+    const whole = await (await post(ask("Japan please"))).json();
+    expect(whole.suggestions[0]).not.toHaveProperty("focus");
+  });
+
+  it("accepts a conversation that names an earlier suggestion by its place", async () => {
+    const response = await post({
+      messages: [
+        { role: "user", content: "a beach week" },
+        { role: "assistant", content: "Goa suits that.", suggested: ["Goa, India", "Kerala, India"] },
+        { role: "user", content: "which is cheapest?" },
+      ],
+    });
+    expect(response.status).toBe(200);
+  });
+
   it("does not echo anything but the structured answer", async () => {
     const body = await (await post(ask("Bali"))).json();
     expect(Object.keys(body).sort()).toEqual(["followUps", "reply", "suggestions"]);

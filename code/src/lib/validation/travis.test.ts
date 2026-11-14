@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { COUNTRIES } from "@/lib/countries";
+import { FOCUS_MAX_LENGTH } from "@/lib/trip-focus";
 import {
   llmTravisTurnSchema,
   MAX_ASSISTANT_MESSAGE_CHARS,
   MAX_HISTORY_MESSAGES,
+  MAX_SUGGESTED_LABEL_CHARS,
   MAX_USER_MESSAGE_CHARS,
   travisChatRequestSchema,
 } from "@/lib/validation/travis";
@@ -91,9 +94,20 @@ describe("travisChatRequestSchema", () => {
 
   it("caps suggested places at three, each of reasonable length", () => {
     const tooMany = { role: "assistant", content: "x", suggested: ["a", "b", "c", "d"] };
-    const tooLong = { role: "assistant", content: "x", suggested: ["a".repeat(81)] };
+    const tooLong = { role: "assistant", content: "x", suggested: ["a".repeat(MAX_SUGGESTED_LABEL_CHARS + 1)] };
+    const longest = { role: "assistant", content: "x", suggested: ["a".repeat(MAX_SUGGESTED_LABEL_CHARS)] };
     expect(travisChatRequestSchema.safeParse({ messages: [tooMany, user("ok")] }).success).toBe(false);
     expect(travisChatRequestSchema.safeParse({ messages: [tooLong, user("ok")] }).success).toBe(false);
+    expect(travisChatRequestSchema.safeParse({ messages: [longest, user("ok")] }).success).toBe(true);
+  });
+
+  it("has room for the longest place in the longest country, so a reply is never refused on the way back", () => {
+    // "Place, Country" is what the browser sends for a suggestion that has a place.
+    const longestCountry = COUNTRIES.reduce((a, b) => (b.name.length > a.length ? b.name : a), "");
+    const label = `${"a".repeat(FOCUS_MAX_LENGTH)}, ${longestCountry}`;
+    expect(label.length).toBeLessThanOrEqual(MAX_SUGGESTED_LABEL_CHARS);
+    const history = { role: "assistant", content: "x", suggested: [label, label, label] };
+    expect(travisChatRequestSchema.safeParse({ messages: [history, user("ok")] }).success).toBe(true);
   });
 
   it("rejects a body with no messages field at all", () => {
@@ -148,6 +162,28 @@ describe("llmTravisTurnSchema", () => {
     expect(
       llmTravisTurnSchema.safeParse({ ...goodTurn, suggestions: [{ ...goodSuggestion, suggestedDays }] }).success,
     ).toBe(false);
+  });
+
+  it("accepts a place inside the country, or none", () => {
+    for (const focus of ["Goa", null, undefined]) {
+      const parsed = llmTravisTurnSchema.parse({ ...goodTurn, suggestions: [{ ...goodSuggestion, focus }] });
+      expect(parsed.suggestions[0].focus ?? null).toBe(focus ?? null);
+    }
+    // Strict JSON-schema mode makes the key required; plain JSON mode may leave it out.
+    expect(llmTravisTurnSchema.safeParse(goodTurn).success).toBe(true);
+  });
+
+  it("trims a place, and leaves its shape to be judged later rather than failing the whole answer", () => {
+    const parsed = llmTravisTurnSchema.parse({ ...goodTurn, suggestions: [{ ...goodSuggestion, focus: "  Goa  " }] });
+    expect(parsed.suggestions[0].focus).toBe("Goa");
+    // Not a place name at all, but still just a string here: `cleanFocus` drops it.
+    expect(llmTravisTurnSchema.safeParse({ ...goodTurn, suggestions: [{ ...goodSuggestion, focus: "<b>" }] }).success).toBe(true);
+  });
+
+  it("bounds how much a model can put in a place", () => {
+    expect(llmTravisTurnSchema.safeParse({ ...goodTurn, suggestions: [{ ...goodSuggestion, focus: "a".repeat(120) }] }).success).toBe(true);
+    expect(llmTravisTurnSchema.safeParse({ ...goodTurn, suggestions: [{ ...goodSuggestion, focus: "a".repeat(121) }] }).success).toBe(false);
+    expect(llmTravisTurnSchema.safeParse({ ...goodTurn, suggestions: [{ ...goodSuggestion, focus: 5 }] }).success).toBe(false);
   });
 
   it("rejects an invented cost outlook", () => {

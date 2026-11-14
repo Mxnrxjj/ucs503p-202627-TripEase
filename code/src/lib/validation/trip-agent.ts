@@ -26,6 +26,9 @@ export const agentTripSchema = z.object({
   id: z.string().min(1).max(120),
   title: z.string().max(200),
   destination: z.string().min(1).max(80),
+  // Lenient on purpose: it is background for the model, so an odd one is left
+  // out of the prompt (`cleanFocus`) rather than refusing the whole request.
+  focus: z.string().max(120).nullish(),
   startDate: isoDate,
   endDate: isoDate,
   dayCount: z.number().int().min(1).max(60),

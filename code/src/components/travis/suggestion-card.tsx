@@ -5,6 +5,7 @@ import { ArrowRight } from "lucide-react";
 import { Badge, Button } from "@/components/ui";
 import { MONTH_FULL_NAMES, monthInWindow, resolveCountry } from "@/lib/countries";
 import { photoForCountry } from "@/lib/destination-photos";
+import { destinationLabel } from "@/lib/trip-focus";
 import { cn, formatDateShort } from "@/lib/utils";
 import type { CostOutlook, DestinationSuggestion } from "@/types/travis";
 
@@ -78,6 +79,8 @@ export function SuggestionCard({
   // simply has no picture rather than a wrong one.
   const country = resolveCountry(suggestion.destination);
   const photo = country ? photoForCountry(country.code) : null;
+  // "Goa, India" when Travis means a place inside the country, else just the country.
+  const name = destinationLabel(suggestion.destination, suggestion.focus);
 
   const title = (
     <h3
@@ -86,13 +89,13 @@ export function SuggestionCard({
         photo ? "text-white" : "text-xl text-zinc-900 dark:text-zinc-50",
       )}
     >
-      {suggestion.destination}
+      {name}
     </h3>
   );
 
   return (
     <article
-      aria-label={suggestion.destination}
+      aria-label={name}
       className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
     >
       {photo ? (
@@ -128,7 +131,7 @@ export function SuggestionCard({
         </dl>
 
         <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-zinc-100 pt-4 dark:border-zinc-800">
-          <Button size="sm" onClick={() => onPlan(suggestion)} aria-label={`Plan this trip to ${suggestion.destination}`}>
+          <Button size="sm" onClick={() => onPlan(suggestion)} aria-label={`Plan this trip to ${name}`}>
             Plan this trip
             <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
           </Button>

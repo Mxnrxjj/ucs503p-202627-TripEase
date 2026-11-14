@@ -37,8 +37,15 @@ export type CostOutlook = "lower" | "typical" | "higher";
 export interface DestinationSuggestion {
   /** Stable within one reply; used as a React key and to label buttons. */
   id: string;
-  /** A country, city, island or region a traveller could actually book. */
+  /** The country the trip is to. Always one TripEase can plan a trip to. */
   destination: string;
+  /**
+   * A place inside `destination` that this suggestion is about ("Goa" in
+   * India), when it is about one place rather than the whole country. Absent
+   * for a whole country, and for conversations saved before places existed.
+   * It is the trip's `focus` once the traveller plans it: see `@/lib/trip-focus`.
+   */
+  focus?: string;
   /** One line on why it fits what the traveller asked for. */
   headline: string;
   /** Best months to go (1–12). `endMonth` may be earlier than `startMonth`: the window wraps the new year. */

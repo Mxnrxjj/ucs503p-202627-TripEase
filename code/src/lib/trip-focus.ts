@@ -1,4 +1,4 @@
-import { COUNTRIES, normalise, resolveCountry } from "@/lib/countries";
+import { COUNTRIES, normalise, resolveCountry, type Country } from "@/lib/countries";
 
 /**
  * The part of a country a trip is about: "Goa" in India, "Kyoto" in Japan,
@@ -71,9 +71,25 @@ export function placeFromQuery(typed: string, countryName: string): string | nul
 }
 
 /**
+ * "Goa, India" → "Goa": a place with its own country tacked on, as people and
+ * models often write it. Only the country's name, or a nickname for it that
+ * isn't a place, counts: in "Mumbai, Goa" the last word is a place, so it stays.
+ */
+function withoutTrailingCountry(text: string, country: Country): string {
+  const comma = text.lastIndexOf(",");
+  if (comma < 0) return text;
+  const tail = normalise(text.slice(comma + 1));
+  if (!tail) return text;
+  const names = [country.name, ...country.aliases].map(normalise);
+  const isCountry = tail === names[0] || names.slice(1).some((alias) => alias === tail && NOT_A_PLACE.has(alias));
+  return isCountry ? text.slice(0, comma) : text;
+}
+
+/**
  * The focus a trip is actually planned around: tidied, and null when there
  * isn't a usable one. A focus that is only the country again ("India", or
- * "Bharat" for India) is no focus at all.
+ * "Bharat" for India) is no focus at all, and one that ends with its country
+ * ("Goa, India") is the place alone.
  */
 export function cleanFocus(focus: string | null | undefined, destination: string): string | null {
   if (typeof focus !== "string") return null;
@@ -81,15 +97,21 @@ export function cleanFocus(focus: string | null | undefined, destination: string
   if (tidy === "" || focusProblem(tidy) !== null) return null;
 
   // A name in a script `normalise` doesn't keep ("東京") has an empty key: it
-  // can't be the country's English name, so it is kept as typed.
+  // can't be the country's English name, so it is kept as typed. The same goes
+  // for a name that only partly is ("東京, Japan"), where `normalise` would
+  // leave just "japan" and make a place look like the country.
   const key = normalise(tidy);
   if (!key) return tidy;
-  if (key === normalise(destination)) return null;
+  const otherScript = /(?!\p{Script=Latin})\p{L}/u.test(tidy);
+  if (!otherScript && key === normalise(destination)) return null;
   const country = resolveCountry(destination);
   if (!country) return tidy;
   const isCountryAgain =
     key === normalise(country.name) || (NOT_A_PLACE.has(key) && country.aliases.some((a) => normalise(a) === key));
-  return isCountryAgain ? null : tidy;
+  if (!otherScript && isCountryAgain) return null;
+
+  const place = withoutTrailingCountry(tidy, country);
+  return place === tidy ? tidy : cleanFocus(place, destination);
 }
 
 /** "Goa, India", or just "India" when the trip has no focus. */

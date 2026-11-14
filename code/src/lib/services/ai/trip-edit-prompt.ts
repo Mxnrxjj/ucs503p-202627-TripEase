@@ -1,5 +1,6 @@
 import { ACTIVITY_CATEGORY_ICON } from "@/types/itinerary";
 import type { AgentTrip, CityTopPlaces, TopPlace, TripAgentFocus, TripAgentMessageInput } from "@/types/trip-agent";
+import { cleanFocus } from "@/lib/trip-focus";
 import { formatDateShort } from "@/lib/utils";
 
 /**
@@ -44,6 +45,7 @@ export const TRIP_EDIT_SYSTEM_PROMPT = [
   "Rules",
   "- At most one of set_cities and set_trip_length in an answer, and at most 8 operations.",
   "- The country of the trip cannot change. Cities must be real, bookable places in it, at most 8 of them, and a trip is 1 to 30 days. Give each city at least 1 day, and 2 or more where you can.",
+  "- When the trip shows a place the traveller asked for, that is where they said they wanted to go when they made it. Use it to understand them (\"more time there\", \"somewhere nearby\"). It is background, never a rule: the cities listed are what the trip is now, they win if the two differ, and it is no reason to refuse a change.",
   '- "Reduce the days", "make it shorter" or "add two days" is set_trip_length. Naming a city to add, remove or change is set_cities.',
   "- You cannot book anything, see live prices or live availability, or move the trip to another country. Say so kindly, and say what you can do instead. For a topic that has nothing to do with the trip, steer back politely in a sentence.",
   "- Never state a price, fare, rate or any amount of money, in an answer or in a recommendation.",
@@ -64,9 +66,12 @@ function clean(text: string, max = 80): string {
  */
 export function buildTripContext(trip: AgentTrip, focus?: TripAgentFocus): string {
   const cities = [...trip.cities].sort((a, b) => a.order - b.order);
+  // Only a well-formed place is shown: it came from the browser, so it is checked again.
+  const requested = cleanFocus(trip.focus, trip.destination);
   const lines: string[] = [
     `Trip: ${clean(trip.title, 100)}`,
     `Destination country: ${clean(trip.destination)}`,
+    ...(requested ? [`Place the traveller asked for when creating the trip: "${clean(requested)}"`] : []),
     `Dates: ${formatDateShort(trip.startDate)} to ${formatDateShort(trip.endDate)} (${trip.dayCount} days), ${trip.travelers} traveller${trip.travelers === 1 ? "" : "s"} (${trip.travelerType})`,
     `Styles: ${trip.preferences.length > 0 ? trip.preferences.join(", ") : "none stated"}`,
     "",

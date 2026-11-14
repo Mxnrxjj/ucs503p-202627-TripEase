@@ -7,6 +7,7 @@ import {
   saveDraft,
   saveDraftOrigin,
 } from "@/lib/draft-storage";
+import { buildInitialWizardData } from "@/components/trips/wizard/initial-data";
 import { toRequestMessages } from "@/lib/travis-client";
 import { startTripFromSuggestion, suggestionToDraft } from "@/lib/travis-draft";
 import { clearAllConversations, clearConversation, loadConversation, saveConversation } from "@/lib/travis-storage";
@@ -109,6 +110,75 @@ describe("startTripFromSuggestion", () => {
   });
 });
 
+describe("a suggestion that is about a place inside the country", () => {
+  const goa = () => suggestion({ destination: "India", focus: "Goa", windowLabel: "Nov–Feb" });
+
+  it("carries the place into the draft, beside the country", () => {
+    expect(suggestionToDraft(goa())).toEqual({
+      destination: "India",
+      focus: "Goa",
+      startDate: "2027-04-01",
+      endDate: "2027-04-08",
+      preferences: ["beaches"],
+    });
+  });
+
+  it("puts nothing about a place in the draft for a whole country", () => {
+    expect(suggestionToDraft(suggestion({ destination: "India" }))).not.toHaveProperty("focus");
+  });
+
+  it("tidies the place it carries", () => {
+    expect(suggestionToDraft(suggestion({ destination: "India", focus: "  Goa  " })).focus).toBe("Goa");
+  });
+
+  it("carries just the place when a stored one ends with its country", () => {
+    const stored = suggestion({ destination: "India", focus: "Goa, India", windowLabel: "Nov–Feb" });
+    expect(suggestionToDraft(stored).focus).toBe("Goa");
+    startTripFromSuggestion(stored);
+    expect(readDraftOrigin()?.destination).toBe("Goa, India");
+  });
+
+  it.each([
+    ["the country again", "India"],
+    ["a nickname for the country", "Bharat"],
+    ["markup", "<b>Goa</b>"],
+    ["empty", ""],
+    ["one letter", "G"],
+    ["not text", 5 as unknown as string],
+  ])("leaves out a stored place that is %s, since a stored suggestion is not trusted", (_label, focus) => {
+    expect(suggestionToDraft(suggestion({ destination: "India", focus }))).not.toHaveProperty("focus");
+  });
+
+  it("opens the wizard on that place, ready to go, in 'I know where I want to go'", () => {
+    const data = buildInitialWizardData(suggestionToDraft(goa()), { startDate: "2030-01-01", endDate: "2030-01-05" });
+    expect(data).toMatchObject({ destination: "India", focus: "Goa", focusMode: "place", startDate: "2027-04-01" });
+  });
+
+  it("opens the wizard on 'Let TripEase choose the cities' for a whole country", () => {
+    const data = buildInitialWizardData(suggestionToDraft(suggestion({ destination: "India" })), {
+      startDate: "2030-01-01",
+      endDate: "2030-01-05",
+    });
+    expect(data).toMatchObject({ destination: "India", focus: "", focusMode: "anywhere" });
+  });
+
+  it("names the place in 'Started from Travis', with its country", () => {
+    startTripFromSuggestion(goa());
+    expect(readDraft()).toMatchObject({ destination: "India", focus: "Goa" });
+    expect(readDraftOrigin()).toEqual({ source: "travis", destination: "Goa, India", windowLabel: "Nov–Feb" });
+  });
+
+  it("names just the country there when there is no place", () => {
+    startTripFromSuggestion(suggestion({ destination: "India", windowLabel: "Nov–Feb" }));
+    expect(readDraftOrigin()?.destination).toBe("India");
+  });
+
+  it("names just the country there when a stored place is no use", () => {
+    startTripFromSuggestion(suggestion({ destination: "India", focus: "<b>", windowLabel: "Nov–Feb" }));
+    expect(readDraftOrigin()?.destination).toBe("India");
+  });
+});
+
 function message(overrides: Partial<TravisChatMessage> & { id: string }): TravisChatMessage {
   return { role: "user", content: "hello", ...overrides };
 }
@@ -123,6 +193,29 @@ describe("toRequestMessages", () => {
       message({ id: "1", role: "assistant", content: "Try these.", suggestions: [suggestion(), suggestion({ destination: "Japan" })] }),
     ]);
     expect(result).toEqual([{ role: "assistant", content: "Try these.", suggested: ["Bali, Indonesia", "Japan"] }]);
+  });
+
+  it("names a place inside a country with its country, so a follow-up can refer to it", () => {
+    const result = toRequestMessages([
+      message({
+        id: "1",
+        role: "assistant",
+        content: "Try these.",
+        suggestions: [
+          suggestion({ destination: "India", focus: "Goa" }),
+          suggestion({ destination: "India", focus: "Kerala" }),
+          suggestion({ destination: "Japan" }),
+        ],
+      }),
+    ]);
+    expect(result[0].suggested).toEqual(["Goa, India", "Kerala, India", "Japan"]);
+  });
+
+  it("names just the country for a stored place that is no use", () => {
+    const result = toRequestMessages([
+      message({ id: "1", role: "assistant", content: "x", suggestions: [suggestion({ destination: "India", focus: "<b>" })] }),
+    ]);
+    expect(result[0].suggested).toEqual(["India"]);
   });
 
   it("does not add an empty list for a reply that suggested nothing", () => {
@@ -216,6 +309,34 @@ describe("conversation storage", () => {
     ];
     saveConversation("u1", conversation);
     expect(loadConversation("u1")).toEqual(conversation);
+  });
+
+  it("keeps the place of a suggestion across a refresh, so 'Plan this trip' still knows it", () => {
+    const conversation = [
+      message({ id: "2", role: "assistant", content: "Goa.", suggestions: [suggestion({ destination: "India", focus: "Goa" })] }),
+    ];
+    saveConversation("u1", conversation);
+    expect(loadConversation("u1")[0].suggestions?.[0]).toMatchObject({ destination: "India", focus: "Goa" });
+  });
+
+  it("still loads a conversation saved before suggestions could have a place", () => {
+    const { focus: _none, ...old } = suggestion({ destination: "India" }) as DestinationSuggestion & { focus?: string };
+    void _none;
+    window.sessionStorage.setItem(
+      "tripease:travis:v1:u1",
+      JSON.stringify([{ id: "2", role: "assistant", content: "India.", suggestions: [old] }]),
+    );
+    const loaded = loadConversation("u1");
+    expect(loaded).toHaveLength(1);
+    expect(loaded[0].suggestions?.[0]).not.toHaveProperty("focus");
+  });
+
+  it("discards a stored place that is not text, like any other malformed field", () => {
+    window.sessionStorage.setItem(
+      "tripease:travis:v1:u1",
+      JSON.stringify([{ id: "2", role: "assistant", content: "x", suggestions: [{ ...suggestion(), focus: 5 }] }]),
+    );
+    expect(loadConversation("u1")).toEqual([]);
   });
 
   it("is empty when nothing was saved", () => {
