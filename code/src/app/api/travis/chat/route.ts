@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authErrorResponse, requireUser } from "@/lib/server/firebase-auth";
-import { createRateLimiter } from "@/lib/server/rate-limit";
+import { createRateLimiter, RATE_LIMITS, rateLimitedResponse } from "@/lib/server/rate-limit";
 import { AIProviderError, getAIProvider } from "@/lib/services/ai";
 import { chatWithTravis } from "@/lib/services/travis";
 import { travisChatRequestSchema } from "@/lib/validation/travis";
@@ -26,8 +26,7 @@ export const maxDuration = 45;
 /** Counted in characters, which is what `text.length` measures; a cheap guard, not an exact byte limit. */
 const MAX_BODY_CHARS = 32_000;
 
-/** 20 messages per person per 10 minutes: plenty for a real conversation. */
-const limiter = createRateLimiter({ limit: 20, windowMs: 10 * 60 * 1000 });
+const limiter = createRateLimiter(RATE_LIMITS.travisChat);
 
 const UNAVAILABLE = "Travis isn't available right now. You can still plan your trip yourself.";
 
@@ -41,13 +40,9 @@ export async function POST(request: NextRequest) {
 
   const allowed = limiter.check(uid);
   if (!allowed.ok) {
-    return NextResponse.json(
-      {
-        error: "You're sending messages quickly. Give Travis a moment and try again.",
-        code: "rate-limited",
-        retryAfterSeconds: allowed.retryAfterSeconds,
-      },
-      { status: 429, headers: { "Retry-After": String(allowed.retryAfterSeconds) } },
+    return rateLimitedResponse(
+      allowed.retryAfterSeconds,
+      "You're sending messages quickly. Give Travis a moment and try again.",
     );
   }
 

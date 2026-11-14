@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authErrorResponse, requireUser } from "@/lib/server/firebase-auth";
+import { createRateLimiter, RATE_LIMITS, rateLimitedResponse, waitInWords } from "@/lib/server/rate-limit";
 import { generateItinerary } from "@/lib/services/itinerary-generator";
 import {
   friendlyPlacesMessage,
@@ -27,7 +28,7 @@ import { z } from "zod";
  * activities (see `generateItinerary`'s `existing` parameter), so editing the
  * city list doesn't throw away the traveller's other work.
  *
- * Authenticated: this can spend Places quota.
+ * Authenticated and rate limited: this can spend Places quota.
  */
 const rebuildRequestSchema = z.object({
   draft: tripDraftInputSchema,
@@ -38,11 +39,22 @@ const rebuildRequestSchema = z.object({
   }),
 });
 
+const limiter = createRateLimiter(RATE_LIMITS.tripRebuild);
+
 export async function POST(request: NextRequest) {
+  let uid: string;
   try {
-    await requireUser(request);
+    ({ uid } = await requireUser(request));
   } catch (error) {
     return authErrorResponse(error);
+  }
+
+  const allowed = limiter.check(uid);
+  if (!allowed.ok) {
+    return rateLimitedResponse(
+      allowed.retryAfterSeconds,
+      `You've changed your cities several times in a short time. Try again ${waitInWords(allowed.retryAfterSeconds)}.`,
+    );
   }
 
   let body: unknown;

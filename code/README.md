@@ -333,16 +333,32 @@ Every route that spends external quota requires a Firebase ID token:
 
 | Route | Protection |
 | --- | --- |
-| `/api/trips/plan` | Bearer ID token → 401 without one |
-| `/api/trips/generate` | Bearer ID token → 401 without one |
-| `/api/trips/rebuild` | Bearer ID token → 401 without one |
-| `/api/places/search` | Bearer ID token → 401 without one |
+| `/api/trips/plan` | Bearer ID token → 401 without one; 10 requests per 10 minutes per user → 429 |
+| `/api/trips/generate` | Bearer ID token → 401 without one; 10 requests per 10 minutes per user → 429 |
+| `/api/trips/rebuild` | Bearer ID token → 401 without one; 20 requests per 10 minutes per user → 429 |
+| `/api/places/search` | Bearer ID token → 401 without one; 30 requests per 10 minutes per user → 429 |
 | `/api/travis/chat` | Bearer ID token → 401 without one; 20 messages per 10 minutes per user → 429 |
 | `/api/trips/agent` | Bearer ID token → 401 without one; 30 requests per 10 minutes per user → 429; changes nothing (no database access) |
 | `/api/places/photo` | HMAC-signed URL → 403 without a valid signature |
 
 The browser attaches the token via `lib/api-client.ts`; the server verifies
 it in `lib/server/firebase-auth.ts`.
+
+**Rate limits.** All the limits above are set in one place, `RATE_LIMITS` in
+`lib/server/rate-limit.ts`, and each route counts separately, so searching
+for places never uses up the allowance for creating a trip. Every limit is
+well above what a person does by hand, and a refused request is turned away
+before it spends any quota, with a message that says when to try again. The
+limiter keeps its counts in server memory, so on a serverless host each
+instance counts separately and a restart clears them, and it counts per
+account, which anyone can create for free. It stops runaway loops and casual
+abuse, not a determined attacker; the providers' own quotas are the real
+ceiling.
+
+`/api/places/photo` is not rate limited. An `<img>` tag cannot send a token,
+so there is no user to count against, and a limit per IP address would block
+everyone sharing one network, such as a campus Wi-Fi. Its signature already
+means that only photo links the server itself issued can be fetched.
 
 **Why not the Firebase Admin SDK?** Firebase ID tokens are ordinary RS256
 JWTs signed by Google, so they're verified here against Google's published

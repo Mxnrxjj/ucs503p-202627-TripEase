@@ -2,6 +2,7 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { requireUser } from "@/lib/server/firebase-auth";
+import { RATE_LIMITS, waitInWords } from "@/lib/server/rate-limit";
 import { getPlacesProvider } from "@/lib/services/places";
 import { PlacesProviderError } from "@/lib/services/places/errors";
 import { ratedPlace, RatedPlacesProvider } from "@/test-support/places/rated-provider";
@@ -24,11 +25,15 @@ vi.mock("@/lib/services/ai", async (importOriginal) => {
 const mockedUser = vi.mocked(requireUser);
 const mockedProvider = vi.mocked(getPlacesProvider);
 
+// A new person for every test: the route's rate limiter remembers people for the whole file.
+let userCounter = 0;
+
 beforeEach(() => {
   vi.restoreAllMocks();
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
-  mockedUser.mockResolvedValue({ uid: "u1", email: null });
+  userCounter += 1;
+  mockedUser.mockResolvedValue({ uid: `user-${userCounter}`, email: null });
 });
 
 const trip = {
@@ -170,5 +175,52 @@ describe("generating a trip about one place in the country", () => {
     const body = await (await post(goa)).json();
     expect(body.code).toBe("no-results");
     expect(JSON.stringify(body)).not.toMatch(/AIza|upstream/);
+  });
+});
+
+describe("rate limiting", () => {
+  const { limit } = RATE_LIMITS.tripGenerate;
+  /** Uses up this test's person's allowance with real requests that work. */
+  async function useAllowance() {
+    for (let i = 0; i < limit; i++) expect((await post()).status).toBe(200);
+  }
+
+  it(`builds a trip ${limit} times for one person, then refuses and says when to try again`, async () => {
+    mockedProvider.mockReturnValue(goodResults());
+    await useAllowance();
+
+    const refused = await post();
+    const json = await refused.json();
+    expect(refused.status).toBe(429);
+    expect(json.code).toBe("rate-limited");
+    expect(json.retryAfterSeconds).toBeGreaterThan(0);
+    expect(refused.headers.get("Retry-After")).toBe(String(json.retryAfterSeconds));
+    expect(json.error).toBe(`You've asked for several new trips in a short time. Try again ${waitInWords(json.retryAfterSeconds)}.`);
+  });
+
+  it("spends nothing on a request it refuses", async () => {
+    const provider = goodResults();
+    mockedProvider.mockReturnValue(provider);
+    await useAllowance();
+    const before = provider.searches.length;
+
+    expect((await post()).status).toBe(429);
+    expect(provider.searches.length).toBe(before);
+  });
+
+  it("refuses before reading the request, so even a broken one counts as refused", async () => {
+    mockedProvider.mockReturnValue(goodResults());
+    await useAllowance();
+    const broken = await POST(new NextRequest("http://localhost/api/trips/generate", { method: "POST", body: "not json" }));
+    expect(broken.status).toBe(429);
+  });
+
+  it("limits one person without affecting anyone else", async () => {
+    mockedProvider.mockReturnValue(goodResults());
+    await useAllowance();
+    expect((await post()).status).toBe(429);
+
+    mockedUser.mockResolvedValue({ uid: `someone-else-${userCounter}`, email: null });
+    expect((await post()).status).toBe(200);
   });
 });

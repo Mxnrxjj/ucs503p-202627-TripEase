@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authErrorResponse, requireUser } from "@/lib/server/firebase-auth";
+import { createRateLimiter, RATE_LIMITS, rateLimitedResponse, waitInWords } from "@/lib/server/rate-limit";
 import { generateItinerary } from "@/lib/services/itinerary-generator";
 import {
   friendlyPlacesMessage,
@@ -14,6 +15,8 @@ import { cityPlanSchema } from "@/lib/validation/planning";
 import { dayCountInclusive, parseDateInput } from "@/lib/date";
 import { cleanFocus } from "@/lib/trip-focus";
 
+const limiter = createRateLimiter(RATE_LIMITS.tripGenerate);
+
 /**
  * POST /api/trips/generate
  *
@@ -26,14 +29,24 @@ import { cleanFocus } from "@/lib/trip-focus";
  * the wire is client input no matter where it originally came from. With no
  * plan supplied it plans internally, so the route still works standalone.
  *
- * Authenticated: this spends Places (and possibly LLM) quota. The provider
- * keys are read from `process.env` on the server and never reach the browser.
+ * Authenticated and rate limited: this spends Places (and possibly LLM)
+ * quota. The provider keys are read from `process.env` on the server and
+ * never reach the browser.
  */
 export async function POST(request: NextRequest) {
+  let uid: string;
   try {
-    await requireUser(request);
+    ({ uid } = await requireUser(request));
   } catch (error) {
     return authErrorResponse(error);
+  }
+
+  const allowed = limiter.check(uid);
+  if (!allowed.ok) {
+    return rateLimitedResponse(
+      allowed.retryAfterSeconds,
+      `You've asked for several new trips in a short time. Try again ${waitInWords(allowed.retryAfterSeconds)}.`,
+    );
   }
 
   let body: unknown;
