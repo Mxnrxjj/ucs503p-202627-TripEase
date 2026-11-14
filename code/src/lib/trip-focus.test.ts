@@ -90,6 +90,22 @@ describe("the list of aliases that are not places", () => {
   });
 });
 
+describe("the places the country picker can name", () => {
+  it("are all usable as a trip's focus, as they are", () => {
+    // `placeFromQuery` hands these on without further checks, so a bad one in the country list would reach the planner.
+    let checked = 0;
+    for (const country of COUNTRIES) {
+      for (const alias of country.aliases) {
+        const place = placeFromQuery(alias, country.name);
+        if (!place) continue;
+        checked += 1;
+        expect(cleanFocus(place, country.name), `${alias} in ${country.name}`).toBe(place);
+      }
+    }
+    expect(checked).toBeGreaterThan(100);
+  });
+});
+
 describe("cleanFocus", () => {
   it("tidies the spacing and keeps the traveller's own spelling", () => {
     expect(cleanFocus("  North   Goa ", "India")).toBe("North Goa");
@@ -115,12 +131,52 @@ describe("cleanFocus", () => {
     expect(cleanFocus("Bali, Indonesia", "Bali, Indonesia")).toBeNull();
   });
 
+  it.each([
+    ["Goa, India", "India", "Goa"],
+    ["Goa,India", "India", "Goa"],
+    ["  goa  ,  INDIA ", "India", "goa"],
+    ["Kyoto, Japan", "Japan", "Kyoto"],
+    ["Tbilisi, Georgia", "Georgia", "Tbilisi"],
+    ["Panaji, Goa, India", "India", "Panaji, Goa"],
+    ["Dubai, UAE", "United Arab Emirates", "Dubai"],
+    ["Jersey, UK", "United Kingdom", "Jersey"],
+    ["東京, Japan", "Japan", "東京"],
+  ])("keeps the place alone when it ends with its own country: %s", (typed, country, place) => {
+    expect(cleanFocus(typed, country)).toBe(place);
+  });
+
+  it.each([
+    ["a last word that is itself a place in the country", "Mumbai, Goa", "India"],
+    ["another country at the end", "Goa, Thailand", "India"],
+    ["a state that shares its name with a country", "Savannah, Georgia", "United States"],
+    ["a destination TripEase doesn't know", "Old Town, Narnia", "Narnia"],
+    ["an ending in a script the list doesn't use", "東京, 日本", "Japan"],
+    ["the country without a comma", "Goa India", "India"],
+  ])("leaves it alone when there is %s", (_label, typed, country) => {
+    expect(cleanFocus(typed, country)).toBe(typed);
+  });
+
+  it.each([
+    ["only the country twice", "India, India"],
+    ["nothing before the country", ", India"],
+    ["one letter before the country", "G, India"],
+    ["a nickname before the country", "Bharat, India"],
+  ])("is null for %s", (_label, typed) => {
+    expect(cleanFocus(typed, "India")).toBeNull();
+  });
+
   it("keeps another country's nickname: it isn't this country again", () => {
     expect(cleanFocus("Thai", "India")).toBe("Thai");
   });
 
   it("keeps a name written in a script the country list doesn't use", () => {
     expect(cleanFocus("東京", "Japan")).toBe("東京");
+  });
+
+  it("does not mistake a name that is partly in such a script for the country", () => {
+    // `normalise` leaves only "japan" of these, which used to make a place look like the country.
+    expect(cleanFocus("東京 Japan", "Japan")).toBe("東京 Japan");
+    expect(cleanFocus("日本 India", "India")).toBe("日本 India");
   });
 
   it("keeps the focus for a destination TripEase doesn't know", () => {
@@ -134,6 +190,11 @@ describe("destinationLabel", () => {
     expect(destinationLabel("India", "")).toBe("India");
     expect(destinationLabel("India", null)).toBe("India");
     expect(destinationLabel("India", "India")).toBe("India");
+  });
+
+  it("does not name the country twice when the place already ends with it", () => {
+    expect(destinationLabel("India", "Goa, India")).toBe("Goa, India");
+    expect(destinationLabel("Japan", "Kyoto, Japan")).toBe("Kyoto, Japan");
   });
 });
 

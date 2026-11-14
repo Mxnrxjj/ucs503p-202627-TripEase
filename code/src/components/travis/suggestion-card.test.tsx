@@ -101,6 +101,53 @@ describe("SuggestionCard", () => {
   });
 });
 
+describe("SuggestionCard for a place inside a country", () => {
+  const goa = () => suggestion({ id: "goa-india-0", destination: "India", focus: "Goa" });
+
+  it("titles the card with the place and its country", () => {
+    render(<SuggestionCard suggestion={goa()} onPlan={vi.fn()} />);
+    expect(screen.getByRole("heading", { name: "Goa, India" })).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "Goa, India" })).toBeInTheDocument();
+  });
+
+  it("names the place in the button, so Goa and Kerala are tellable apart", () => {
+    render(
+      <>
+        <SuggestionCard suggestion={goa()} onPlan={vi.fn()} />
+        <SuggestionCard suggestion={suggestion({ id: "kerala-india-1", destination: "India", focus: "Kerala" })} onPlan={vi.fn()} />
+      </>,
+    );
+    expect(screen.getByRole("button", { name: "Plan this trip to Goa, India" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Plan this trip to Kerala, India" })).toBeInTheDocument();
+  });
+
+  it("still shows the country's photograph, since the photograph is of the country", () => {
+    const { container } = render(<SuggestionCard suggestion={goa()} onPlan={vi.fn()} />);
+    const photo = photoForCountry("IN");
+    expect(photo).not.toBeNull();
+    expect(container.querySelector("img")).toHaveAttribute("alt", photo!.alt);
+  });
+
+  it("hands the whole suggestion, place included, back when planning is chosen", () => {
+    const onPlan = vi.fn();
+    const chosen = goa();
+    render(<SuggestionCard suggestion={chosen} onPlan={onPlan} />);
+    fireEvent.click(screen.getByRole("button", { name: "Plan this trip to Goa, India" }));
+    expect(onPlan).toHaveBeenCalledWith(chosen);
+  });
+
+  it("shows just the country when there is no place", () => {
+    render(<SuggestionCard suggestion={suggestion({ destination: "India" })} onPlan={vi.fn()} />);
+    expect(screen.getByRole("heading", { name: "India" })).toBeInTheDocument();
+  });
+
+  it("shows just the country when a stored place is no use, rather than printing it", () => {
+    render(<SuggestionCard suggestion={suggestion({ destination: "India", focus: "<b>Goa</b>" })} onPlan={vi.fn()} />);
+    expect(screen.getByRole("heading", { name: "India" })).toBeInTheDocument();
+    expect(screen.queryByText(/Goa/)).not.toBeInTheDocument();
+  });
+});
+
 describe("MonthStrip", () => {
   const filled = (container: HTMLElement) =>
     [...container.querySelectorAll('[aria-hidden="true"] > span:first-child')].map((segment) => segment.className.includes("bg-orange-500"));

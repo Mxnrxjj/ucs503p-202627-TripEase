@@ -1,4 +1,5 @@
 import { postAuthenticated } from "@/lib/api-client";
+import { destinationLabel } from "@/lib/trip-focus";
 import { MAX_HISTORY_MESSAGES } from "@/lib/validation/travis";
 import type { TravisChatMessage, TravisMessageInput, TravisResponse } from "@/types/travis";
 
@@ -19,7 +20,7 @@ export function toRequestMessages(messages: TravisChatMessage[]): TravisMessageI
       return {
         role: message.role,
         content: message.content,
-        suggested: message.suggestions.map((s) => s.destination),
+        suggested: message.suggestions.map((s) => destinationLabel(s.destination, s.focus)),
       };
     }
     return { role: message.role, content: message.content };

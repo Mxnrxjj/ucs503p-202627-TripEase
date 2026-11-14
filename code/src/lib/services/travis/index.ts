@@ -36,7 +36,7 @@ export interface TravisResult extends TravisReply {
 const PRICE_REPAIR =
   "You stated amounts of money. You have no live prices, so you must not state any amount, fare or rate in any currency. Describe cost only as lower, typical or higher, with the seasonal reason.";
 const unsupportedRepair = (names: string[]) =>
-  `You suggested places TripEase cannot plan trips to: ${names.join(", ")}. Every suggestion's destination must be exactly one of the supported country names listed in your instructions. Replace those with supported countries.`;
+  `You suggested places TripEase cannot plan trips to: ${names.join(", ")}. Every suggestion's destination must be exactly one of the supported country names listed in your instructions; a city, island or region goes in \`focus\`, not in destination. Replace those with supported countries.`;
 const SHAPE_REPAIR = "Your answer was not valid JSON in the required shape. Reply with JSON only, exactly matching the schema.";
 
 export async function chatWithTravis(

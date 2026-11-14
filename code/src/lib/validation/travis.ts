@@ -15,12 +15,15 @@ export const MAX_USER_MESSAGE_CHARS = 1000;
 /** A little above the model's own reply cap, so a real reply always round-trips. */
 export const MAX_ASSISTANT_MESSAGE_CHARS = 1600;
 export const MAX_HISTORY_MESSAGES = 12;
+/** What one earlier suggestion may be called when it is sent back: "Goa, India" at most. */
+export const MAX_SUGGESTED_LABEL_CHARS = 100;
 
 const messageSchema = z
   .object({
     role: z.enum(["user", "assistant"]),
     content: z.string().trim().min(1),
-    suggested: z.array(z.string().trim().min(1).max(80)).max(3).optional(),
+    // "Place, Country" at its longest: a 60-character place plus the longest country name.
+    suggested: z.array(z.string().trim().min(1).max(MAX_SUGGESTED_LABEL_CHARS)).max(3).optional(),
   })
   .superRefine((message, ctx) => {
     const max = message.role === "user" ? MAX_USER_MESSAGE_CHARS : MAX_ASSISTANT_MESSAGE_CHARS;
@@ -48,6 +51,10 @@ const month = z.number().int().min(1).max(12);
 
 const llmSuggestionSchema = z.object({
   destination: z.string().trim().min(2).max(80),
+  // Optional, and checked for shape later (`cleanFocus`) rather than here: a
+  // place the model words badly should cost the suggestion its place, not the
+  // whole answer a retry.
+  focus: z.string().trim().max(120).nullish(),
   headline: z.string().trim().min(1).max(160),
   startMonth: month,
   endMonth: month,

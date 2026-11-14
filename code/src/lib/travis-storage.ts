@@ -27,6 +27,9 @@ const keyFor = (uid: string) => `${PREFIX}${uid}`;
 const suggestionSchema = z.object({
   id: z.string(),
   destination: z.string(),
+  // Absent in conversations saved before places existed. Without this line the
+  // parse would drop it, and "Plan this trip" would forget the place after a refresh.
+  focus: z.string().optional(),
   headline: z.string(),
   startMonth: z.number(),
   endMonth: z.number(),

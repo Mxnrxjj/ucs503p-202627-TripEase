@@ -8,6 +8,7 @@ export function toAgentTrip(trip: Trip): AgentTrip {
     id: trip.id,
     title: trip.title,
     destination: trip.destination,
+    ...(trip.focus ? { focus: trip.focus } : {}),
     startDate: trip.startDate,
     endDate: trip.endDate,
     dayCount: trip.dayCount,
