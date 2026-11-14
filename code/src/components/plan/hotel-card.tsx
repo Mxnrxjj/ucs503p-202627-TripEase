@@ -19,6 +19,7 @@ export function HotelCard({
   currency,
   travelers,
   selected = false,
+  maxNights,
   onEdit,
   className,
 }: {
@@ -28,6 +29,8 @@ export function HotelCard({
   travelers: number;
   /** The map has this hotel selected. */
   selected?: boolean;
+  /** The most nights this city's hotel can be booked for. Its days, when not given. */
+  maxNights?: number;
   onEdit: (patch: Partial<City["hotel"]>) => void;
   className?: string;
 }) {
@@ -82,7 +85,7 @@ export function HotelCard({
         <span className="sr-only">Edit hotel in {city.name}</span>
       </button>
 
-      <HotelEditorDialog open={editing} onOpenChange={setEditing} hotel={city.hotel} maxNights={city.dayCount} onSave={onEdit} />
+      <HotelEditorDialog open={editing} onOpenChange={setEditing} hotel={city.hotel} maxNights={maxNights ?? city.dayCount} days={city.dayCount} onSave={onEdit} />
     </>
   );
 }

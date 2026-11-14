@@ -443,6 +443,9 @@ is not the same as best, so `places/ranking.ts` chooses:
   Asking Travis for a cheaper or dearer hotel moves it one class and prices it
   at that class, and the "cheaper hotel" saving is not offered for a hotel that
   is already 3-star.
+  Nights follow the days: every city gets as many nights as days, except the city the
+  trip ends in, which gets one fewer (none if the trip ends the day it arrives). The
+  hotel editor holds a city to the same limit (`lib/hotel-nights.ts`).
 
 Provider responses are cached in-process for 10 minutes
 (`places/cache.ts`), so regenerating a similar trip doesn't re-bill the same

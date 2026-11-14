@@ -41,6 +41,35 @@ describe("HotelCard", () => {
     expect(onEdit).not.toHaveBeenCalled();
   });
 
+  it("holds the last city of the trip to one night fewer than its days, and says why", () => {
+    const onEdit = vi.fn();
+    render(<HotelCard city={withNights(2, 3)} maxNights={2} currency="INR" travelers={1} onEdit={onEdit} />);
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(`Edit hotel in ${base.name}`) }));
+    fireEvent.change(screen.getByLabelText("Nights"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+    expect(screen.getByRole("alert").textContent).toBe("This city has 3 days and the trip ends on its last one, so it can have at most 2 nights.");
+    expect(onEdit).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Nights"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+    expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ nights: 2 }));
+  });
+
+  it("writes a limit of one night, and a one-day city, in the singular", () => {
+    render(<HotelCard city={withNights(1, 2)} maxNights={1} currency="INR" travelers={1} onEdit={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(`Edit hotel in ${base.name}`) }));
+    fireEvent.change(screen.getByLabelText("Nights"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+    expect(screen.getByRole("alert").textContent).toBe("This city has 2 days and the trip ends on its last one, so it can have at most 1 night.");
+  });
+
+  it("gives a city that is not the last all its days, with the plain message", () => {
+    render(<HotelCard city={withNights(3, 3)} maxNights={3} currency="INR" travelers={1} onEdit={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(`Edit hotel in ${base.name}`) }));
+    fireEvent.change(screen.getByLabelText("Nights"), { target: { value: "4" } });
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+    expect(screen.getByRole("alert").textContent).toBe("This city has 3 days, so it can have at most 3 nights.");
+  });
+
   it("saves a number of nights within the city's days", () => {
     const onEdit = vi.fn();
     render(<HotelCard city={withNights(2, 3)} currency="INR" travelers={1} onEdit={onEdit} />);

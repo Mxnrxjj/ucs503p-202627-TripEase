@@ -99,6 +99,7 @@ describe("DayStrip", () => {
 });
 
 describe("DayPanel", () => {
+  const city0Days = () => cities()[0].dayCount;
   const handlers = () => ({
     onSelectPlace: vi.fn(),
     onSelectDay: vi.fn(),
@@ -131,6 +132,14 @@ describe("DayPanel", () => {
     );
     return { ...h, day, city, ordered };
   }
+
+  it("holds the hotel to the nights it is given", () => {
+    const { city } = renderDay(0, { maxNights: city0Days() - 1 });
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(`Edit hotel in ${city.name}`) }));
+    fireEvent.change(screen.getByLabelText("Nights"), { target: { value: String(city.dayCount) } });
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+    expect(screen.getByRole("alert").textContent).toMatch(/can have at most/);
+  });
 
   it("shows the city, its hotel and only this day's places", () => {
     const { day, city } = renderDay(1);
@@ -250,6 +259,23 @@ describe("StaysPanel", () => {
     fireEvent.change(screen.getByLabelText(/hotel name|name/i), { target: { value: "Another hotel" } });
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
     expect(onEditHotel).toHaveBeenCalledWith(cities()[1].id, expect.objectContaining({ name: "Another hotel" }));
+  });
+
+  it("lets every city but the last book all its days, and the last one fewer", () => {
+    const [first, last] = [cities()[0], cities()[cities().length - 1]];
+    const nightsError = (city: typeof first, value: string) => {
+      const { unmount } = render(<StaysPanel cities={cities()} days={days()} currency={trip.currency} travelers={trip.travelers} plans={plans} selectedPlaceId={null} onEditHotel={vi.fn()} />);
+      fireEvent.click(screen.getByRole("button", { name: new RegExp(`Edit hotel in ${city.name}`) }));
+      fireEvent.change(screen.getByLabelText("Nights"), { target: { value } });
+      fireEvent.click(screen.getByRole("button", { name: /save/i }));
+      const alert = screen.queryByRole("alert")?.textContent ?? null;
+      unmount();
+      return alert;
+    };
+    expect(nightsError(first, String(first.dayCount))).toBeNull();
+    expect(nightsError(first, String(first.dayCount + 1))).not.toBeNull();
+    expect(nightsError(last, String(last.dayCount - 1))).toBeNull();
+    expect(nightsError(last, String(last.dayCount))).toMatch(/the trip ends on its last one, so it can have at most/);
   });
 
   it("copes with no analysis yet", () => {

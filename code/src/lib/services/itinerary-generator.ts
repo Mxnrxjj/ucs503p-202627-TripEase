@@ -4,6 +4,7 @@ import { hotelRate, rateBasisOf, TIER_STARS, type HotelRate, type HotelTier } fr
 import { quoteFlights } from "@/lib/flights/quote";
 import { getPlacesProvider } from "@/lib/services/places";
 import { PlacesProviderError } from "@/lib/services/places/errors";
+import { nightsInCity } from "@/lib/hotel-nights";
 import { pickHotel, rankByQuality, withoutDuplicates } from "@/lib/services/places/ranking";
 import type { PlaceSearchParams, PlacesProvider } from "@/lib/services/places/provider";
 import { computeBudgetBreakdown, roomsFor } from "@/lib/services/budget-engine";
@@ -503,10 +504,7 @@ export async function generateItinerary(
     const allocation = plan.cities[i];
     const count = allocation.days;
     const isLast = i === plan.cities.length - 1;
-    // You sleep a night in every city you stay in, except that the trip ends on
-    // its last day. So the last city gets one night fewer than its days, which
-    // is none when the trip ends the day it arrives there.
-    const nights = isLast ? count - 1 : count;
+    const nights = nightsInCity(count, isLast);
 
     // The destination doubles as the country hint for place lookups: searching
     // "Rome, Italy" is far more precise than searching "Rome".

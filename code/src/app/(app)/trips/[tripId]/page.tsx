@@ -27,6 +27,7 @@ import {
 } from "@/lib/services/trip-mutations";
 import { roadmapElementId, type MapFilter, type MapFilterMode } from "@/lib/services/map-points";
 import { postAuthenticated } from "@/lib/api-client";
+import { maxNightsOf } from "@/lib/hotel-nights";
 import { cn } from "@/lib/utils";
 import type { Activity, City } from "@/types/itinerary";
 import type { SavingsSuggestion } from "@/types/budget";
@@ -340,6 +341,7 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
                   onSelectPlace={handleSelectPlace}
                   onSelectDay={selectDay}
                   onEditHotel={(patch) => handleEditHotel(focusedCity.id, patch)}
+                  maxNights={maxNightsOf(focusedCity, sortedCities)}
                   onAddActivity={handleAddActivity}
                   onEditActivity={handleEditActivity}
                   onDeleteActivity={handleDeleteActivity}

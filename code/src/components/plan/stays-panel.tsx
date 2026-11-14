@@ -1,6 +1,7 @@
 "use client";
 
 import { TravelSegmentRow } from "@/components/roadmap/travel-segment-row";
+import { maxNightsOf } from "@/lib/hotel-nights";
 import { formatDateShort } from "@/lib/utils";
 import type { City, TripDay } from "@/types/itinerary";
 import type { DayPlan } from "@/types/travel";
@@ -62,6 +63,7 @@ export function StaysPanel({
               currency={currency}
               travelers={travelers}
               selected={selectedPlaceId === `hotel:${city.id}`}
+              maxNights={maxNightsOf(city, cities)}
               onEdit={(patch) => onEditHotel(city.id, patch)}
               className="self-start"
             />

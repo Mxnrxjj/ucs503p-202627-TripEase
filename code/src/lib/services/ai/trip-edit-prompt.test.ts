@@ -162,6 +162,15 @@ describe("tripVersion", () => {
     const hotel = structuredClone(trip);
     hotel.cities[0].hotel.name = "Another hotel";
     expect(tripVersion(hotel)).not.toBe(base);
+    const nights = structuredClone(trip);
+    nights.cities[0].hotel.nights += 1;
+    expect(tripVersion(nights)).not.toBe(base);
+    // A free night does not move the budget, but it is still a change to the trip.
+    const free = structuredClone(trip);
+    free.cities[0].hotel.pricePerNight = 0;
+    const freeMore = structuredClone(free);
+    freeMore.cities[0].hotel.nights += 1;
+    expect(tripVersion(freeMore)).not.toBe(tripVersion(free));
     expect(tripVersion({ ...trip, budget: { ...trip.budget, estimatedTotal: trip.budget.estimatedTotal + 1 } })).not.toBe(base);
   });
 

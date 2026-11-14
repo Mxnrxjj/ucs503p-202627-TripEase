@@ -1,3 +1,4 @@
+import { maxNightsOf } from "@/lib/hotel-nights";
 import { describe, expect, it } from "vitest";
 import { quoteFlights } from "@/lib/flights/quote";
 import { fromInr } from "@/lib/fx";
@@ -284,6 +285,24 @@ describe("hotel nights", () => {
   it("charges no night for a one-day trip", async () => {
     const oneDay = { ...draft, endDate: "2027-03-01" };
     expect(await nightsOf(oneDay, plan([{ name: "Testville", days: 1 }]))).toEqual([0]);
+  });
+
+  it("books exactly what the hotel editor allows, city by city, and one night fewer than the days in all", async () => {
+    const fiveDays = { ...draft, endDate: "2027-03-05" };
+    const itinerary = await generateItinerary(
+      fiveDays,
+      plan([
+        { name: "Testville", days: 2 },
+        { name: "Otherton", days: 2 },
+        { name: "Lastburg", days: 1 },
+      ]),
+      undefined,
+      new RatedPlacesProvider(results()),
+    );
+    const nights = itinerary.cities.map((c) => c.hotel.nights);
+    expect(nights).toEqual([2, 2, 0]);
+    expect(nights).toEqual(itinerary.cities.map((c) => maxNightsOf(c, itinerary.cities)));
+    expect(nights.reduce((a, b) => a + b, 0)).toBe(5 - 1);
   });
 
   it("charges one night fewer than the days in total", async () => {

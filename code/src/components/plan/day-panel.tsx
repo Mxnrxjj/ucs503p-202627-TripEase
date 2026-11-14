@@ -29,6 +29,7 @@ export function DayPanel({
   onSelectPlace,
   onSelectDay,
   onEditHotel,
+  maxNights,
   onAddActivity,
   onEditActivity,
   onDeleteActivity,
@@ -47,6 +48,8 @@ export function DayPanel({
   onSelectPlace: (id: string | null) => void;
   onSelectDay: (dayId: string) => void;
   onEditHotel: (patch: Partial<City["hotel"]>) => void;
+  /** The most nights this city's hotel can be booked for (see `maxNightsOf`). */
+  maxNights?: number;
   onAddActivity: (dayId: string, activity: Activity) => void;
   onEditActivity: (dayId: string, activityId: string, patch: Partial<Activity>) => void;
   onDeleteActivity: (dayId: string, activityId: string) => void;
@@ -68,7 +71,7 @@ export function DayPanel({
             </Button>
           ) : null}
         </div>
-        <HotelCard city={city} currency={currency} travelers={travelers} selected={selectedPlaceId === `hotel:${city.id}`} onEdit={onEditHotel} />
+        <HotelCard city={city} currency={currency} travelers={travelers} selected={selectedPlaceId === `hotel:${city.id}`} maxNights={maxNights} onEdit={onEditHotel} />
       </div>
 
       <DayView

@@ -15,7 +15,7 @@ import type { AgentTrip } from "@/types/trip-agent";
 export function tripVersion(trip: Pick<AgentTrip, "endDate" | "cities" | "days" | "budget">): string {
   const shape = JSON.stringify({
     end: trip.endDate,
-    cities: trip.cities.map((c) => [c.id, c.name, c.order, c.dayCount, c.hotel.name, c.hotel.pricePerNight]),
+    cities: trip.cities.map((c) => [c.id, c.name, c.order, c.dayCount, c.hotel.name, c.hotel.pricePerNight, c.hotel.nights]),
     days: trip.days.map((d) => [
       d.id,
       d.dayNumber,
