@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRef, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { Chip, SelectField, TextField } from "@/components/ui";
 import { CountryCombobox } from "@/components/ui/country-combobox";
 import { COUNTRIES } from "@/lib/countries";
+import { destinationLabel, focusAfterPick, focusProblem } from "@/lib/trip-focus";
 import { ORIGIN_AIRPORTS, indianAirport, isOriginAirport } from "@/lib/flights/airports";
 import { isDomestic } from "@/lib/flights/quote";
 import { toInr } from "@/lib/fx";
@@ -15,6 +17,13 @@ import { StepHeading } from "./wizard-shell";
 
 export interface WizardData {
   destination: string;
+  /**
+   * "anywhere": TripEase chooses the cities across the country. "place": the
+   * traveller named where they want to go, in `focus`.
+   */
+  focusMode: "anywhere" | "place";
+  /** The place inside the destination country ("Goa"); "" for none. */
+  focus: string;
   startDate: string;
   endDate: string;
   budget: string;
@@ -57,7 +66,43 @@ type SetData = (patch: Partial<WizardData> | ((prev: WizardData) => Partial<Wiza
 /** The countries shown as one-tap choices under the search box. */
 const QUICK_PICKS = COUNTRIES.slice(0, 6);
 
+const NO_PLACE = "Type the place, or let TripEase choose the cities.";
+
+/**
+ * Why the destination step can't move on because of the place, or null. Only
+ * asked when the traveller said they know where they want to go.
+ */
+export function focusStepProblem(data: Pick<WizardData, "focusMode" | "focus">): string | null {
+  if (data.focusMode !== "place") return null;
+  return data.focus.trim() === "" ? NO_PLACE : focusProblem(data.focus);
+}
+
 export function DestinationStep({ data, setData }: { data: WizardData; setData: SetData }) {
+  // The country the place below was written for, so changing country can
+  // clear a place that no longer belongs to it.
+  const focusFor = useRef(data.destination);
+  const country = COUNTRIES.find((c) => c.name === data.destination) ?? null;
+  // An empty or one-letter place waits until they leave the box: half-typed is not a mistake yet.
+  const [leftFocusBox, setLeftFocusBox] = useState(false);
+  const placeProblem = focusStepProblem(data);
+  const shownPlaceProblem = placeProblem && (leftFocusBox || data.focus.trim().length >= 2) ? placeProblem : null;
+
+  function pick(destination: string, typed?: string) {
+    const owner = focusFor.current;
+    if (destination) focusFor.current = destination;
+    setData((prev) => {
+      const focus = focusAfterPick(prev.focus, owner, destination, typed);
+      // A place picked through the country box means they know where; a new
+      // country starts from "let TripEase choose"; anything else stays as it was.
+      const focusMode: WizardData["focusMode"] = focus
+        ? "place"
+        : destination && destination !== owner
+          ? "anywhere"
+          : prev.focusMode;
+      return { destination, focus, focusMode };
+    });
+  }
+
   return (
     <div>
       <StepHeading
@@ -68,20 +113,77 @@ export function DestinationStep({ data, setData }: { data: WizardData; setData: 
         id="destination"
         label="Destination"
         value={data.destination}
-        onChange={(destination) => setData({ destination })}
+        onChange={pick}
+        noMatchHint="If it's a town or a region, choose the country it's in, then pick “I know where I want to go” below."
         autoFocus
       />
       <div className="mt-4 flex flex-wrap gap-2">
-        {QUICK_PICKS.map((country) => (
-          <Chip
-            key={country.code}
-            selected={data.destination === country.name}
-            onClick={() => setData({ destination: country.name })}
-          >
-            {country.name}
+        {QUICK_PICKS.map((quick) => (
+          <Chip key={quick.code} selected={data.destination === quick.name} onClick={() => pick(quick.name)}>
+            {quick.name}
           </Chip>
         ))}
       </div>
+      {country ? (
+        <fieldset className="mt-5 flex flex-col gap-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+          <legend className="px-1 text-sm font-medium text-zinc-800 dark:text-zinc-200">
+            Which part of {country.name}?
+          </legend>
+          <label className="flex cursor-pointer items-start gap-3 text-sm">
+            <input
+              type="radio"
+              name="focus-mode"
+              className="mt-0.5 h-4 w-4 accent-orange-600"
+              checked={data.focusMode === "anywhere"}
+              onChange={() => setData({ focusMode: "anywhere", focus: "" })}
+            />
+            <span>
+              <span className="block font-medium text-zinc-900 dark:text-zinc-100">Let TripEase choose the cities</span>
+              <span className="block text-xs text-zinc-500">
+                The best cities across {country.name} for the number of days you have.
+              </span>
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-start gap-3 text-sm">
+            <input
+              type="radio"
+              name="focus-mode"
+              className="mt-0.5 h-4 w-4 accent-orange-600"
+              checked={data.focusMode === "place"}
+              onChange={() => setData({ focusMode: "place" })}
+            />
+            <span>
+              <span className="block font-medium text-zinc-900 dark:text-zinc-100">I know where I want to go</span>
+              <span className="block text-xs text-zinc-500">
+                A city, town or region. The trip is planned in and around it.
+              </span>
+            </span>
+          </label>
+          {data.focusMode === "place" ? (
+            <div className="pl-7">
+              <TextField
+                id="focus"
+                label={`Where in ${country.name}?`}
+                placeholder={
+                  // A one-city country (Singapore) has no other city to suggest.
+                  country.cities.length > 1
+                    ? `e.g. ${country.cities
+                        .slice(0, 2)
+                        .map((city) => city.name)
+                        .join(", ")}`
+                    : "e.g. an area you'd like to stay in"
+                }
+                value={data.focus}
+                maxLength={80}
+                autoComplete="off"
+                onChange={(event) => setData({ focus: event.target.value })}
+                onBlur={() => setLeftFocusBox(true)}
+                error={shownPlaceProblem}
+              />
+            </div>
+          ) : null}
+        </fieldset>
+      ) : null}
       <p className="mt-6 text-sm text-zinc-500">
         Not sure where to go, or when?{" "}
         <Link href="/travis" className="font-medium text-orange-700 hover:underline dark:text-orange-400">
@@ -296,7 +398,7 @@ export function ReviewStep({ data }: { data: WizardData }) {
     <div>
       <StepHeading title="Ready to generate your trip" subtitle="Double-check the details below." />
       <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-900/60">
-        <Row label="Destination" value={data.destination || "—"} big />
+        <Row label="Destination" value={data.destination ? destinationLabel(data.destination, data.focus) : "—"} big />
         <Row label="Dates" value={`${data.startDate || "—"} → ${data.endDate || "—"}`} />
         <Row label="Travellers" value={`${data.travelers} (${data.travelerType})`} />
         <Row

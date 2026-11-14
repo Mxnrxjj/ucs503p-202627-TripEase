@@ -3,6 +3,7 @@ import { latLngSchema, ratingSchema, sourceRefSchema } from "@/lib/validation/pl
 import { travelStyleSchema } from "@/lib/validation/shared";
 import { isSupportedCountry } from "@/lib/countries";
 import { isOriginAirport } from "@/lib/flights/airports";
+import { FOCUS_MAX_LENGTH, focusProblem } from "@/lib/trip-focus";
 import { MAX_BUDGET, budgetProblem, isRealDay, tripLengthProblem } from "@/lib/trip-input-checks";
 
 export { travelStyleSchema };
@@ -18,8 +19,19 @@ const quoteDaySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(isRealDay,
 
 export const travelerTypeSchema = z.enum(["solo", "couple", "family", "friends", "custom"]);
 
+/** A place inside the destination country. Empty is allowed and means none. */
+const focusSchema = z
+  .string()
+  .trim()
+  .max(FOCUS_MAX_LENGTH)
+  .superRefine((value, ctx) => {
+    const problem = focusProblem(value);
+    if (problem) ctx.addIssue({ code: "custom", message: problem });
+  });
+
 export const tripDraftInputSchema = z.object({
   destination: z.string().trim().min(2).max(80),
+  focus: focusSchema.optional(),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   budget: z.number().positive().max(MAX_BUDGET),
@@ -179,6 +191,7 @@ export const flightQuoteSchema = z.object({
 
 export const generatedItinerarySchema = z.object({
   destination: z.string(),
+  focus: z.string().nullable().optional(),
   title: z.string(),
   startDate: z.string(),
   endDate: z.string(),

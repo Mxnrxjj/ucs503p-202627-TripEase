@@ -316,3 +316,57 @@ describe("errors", () => {
     expect(input()).toHaveAccessibleDescription("Pick a country from the list");
   });
 });
+
+describe("what was typed to find the country", () => {
+  function Plain({ onChange, initial = "" }: { onChange: (country: string, typed?: string) => void; initial?: string }) {
+    const [value, setValue] = useState(initial);
+    return (
+      <CountryCombobox
+        id="dest"
+        label="Destination"
+        value={value}
+        debounceMs={DEBOUNCE}
+        noMatchHint="Pick its country first."
+        onChange={(country, typed) => {
+          setValue(country);
+          onChange(country, typed);
+        }}
+      />
+    );
+  }
+
+  it("is passed along when the traveller picks after typing", () => {
+    const onChange = vi.fn();
+    render(<Plain onChange={onChange} />);
+    fireEvent.focus(input());
+    type("goa");
+    fireEvent.keyDown(input(), { key: "Enter" });
+    expect(onChange).toHaveBeenLastCalledWith("India", "goa");
+  });
+
+  it("is passed along for a mouse pick too", () => {
+    const onChange = vi.fn();
+    render(<Plain onChange={onChange} />);
+    fireEvent.focus(input());
+    type("phuket");
+    settle();
+    fireEvent.click(screen.getByRole("option", { name: /Thailand/ }));
+    expect(onChange).toHaveBeenLastCalledWith("Thailand", "phuket");
+  });
+
+  it("is not passed when nothing was typed since the last choice", () => {
+    const onChange = vi.fn();
+    render(<Plain onChange={onChange} initial="India" />);
+    fireEvent.focus(input());
+    fireEvent.click(screen.getByRole("option", { name: /Singapore/ }));
+    expect(onChange).toHaveBeenLastCalledWith("Singapore", undefined);
+  });
+
+  it("replaces the advice under 'No match' when the page has its own", () => {
+    render(<Plain onChange={vi.fn()} />);
+    fireEvent.focus(input());
+    type("Rishikesh");
+    settle();
+    expect(screen.getByText(/No match for/)).toHaveTextContent("No match for “Rishikesh”. Pick its country first.");
+  });
+});

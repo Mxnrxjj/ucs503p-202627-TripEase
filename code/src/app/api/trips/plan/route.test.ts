@@ -81,3 +81,21 @@ describe("planning the cities of a trip", () => {
     expect(response.status).toBe(400);
   });
 });
+
+describe("planning a trip about one place in the country", () => {
+  it("plans around the place, tidied", async () => {
+    const body = await (await post({ ...trip, destination: "India", focus: "  Darjeeling  " })).json();
+    expect(body.plan.cities).toEqual([expect.objectContaining({ name: "Darjeeling", days: 7 })]);
+  });
+
+  it("plans the whole country when the place is empty or the country again", async () => {
+    for (const focus of ["", "India", "bharat"]) {
+      const body = await (await post({ ...trip, destination: "India", focus })).json();
+      expect(body.plan.cities.length, focus).toBeGreaterThan(1);
+    }
+  });
+
+  it("refuses a place that is not a place name", async () => {
+    expect((await post({ ...trip, destination: "India", focus: "<b>Goa</b>" })).status).toBe(400);
+  });
+});

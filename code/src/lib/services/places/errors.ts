@@ -27,6 +27,28 @@ export class PlacesProviderError extends Error {
   }
 }
 
+/**
+ * One of the trip's places has no hotels, or nothing to see, in the places
+ * service. Unlike other failures this is TripEase's own finding, not upstream
+ * text, so it can be shown and can name the place: that is what the traveller
+ * needs in order to fix it.
+ */
+export class PlaceNotFoundError extends PlacesProviderError {
+  constructor(
+    readonly place: string,
+    readonly missing: "hotels" | "sights",
+  ) {
+    super("no-results", missing === "hotels" ? `No hotels were found in ${place}.` : `Nothing to see was found in ${place}.`);
+    this.name = "PlaceNotFoundError";
+  }
+}
+
+/** What to tell the traveller when one of their places can't be found in `country`. */
+export function placeNotFoundMessage(error: PlaceNotFoundError, country: string): string {
+  const what = error.missing === "hotels" ? "No hotels" : "Nothing to see";
+  return `${what} could be found in ${error.place}. Check that it's spelled right and is in ${country}, or try a bigger town nearby.`;
+}
+
 /** Maps an upstream HTTP status onto a provider error code. */
 export function codeForHttpStatus(status: number): PlacesErrorCode {
   if (status === 400 || status === 401 || status === 403) return "invalid-key";

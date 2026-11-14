@@ -4,7 +4,8 @@ import { quoteFlights } from "@/lib/flights/quote";
 import { fromInr } from "@/lib/fx";
 import { parseTimeToMinutes } from "@/lib/services/feasibility";
 import { getTravelTimeProvider } from "@/lib/services/feasibility/travel-time";
-import { generateItinerary } from "@/lib/services/itinerary-generator";
+import { generateItinerary, searchPlaces } from "@/lib/services/itinerary-generator";
+import { PlaceNotFoundError } from "@/lib/services/places/errors";
 import { PlacesProviderError } from "@/lib/services/places/errors";
 import type { CityPlan } from "@/types/planning";
 import type { TripDraftInput } from "@/types/trip";
@@ -437,5 +438,84 @@ describe("the clock times of a generated day", () => {
     for (const stop of transferDay.activities.filter((a) => a.category !== "transport")) {
       expect(parseTimeToMinutes(stop.time)!).toBeGreaterThanOrEqual(end);
     }
+  });
+});
+
+describe("a trip about one place in the country", () => {
+  const india = { ...draft, destination: "India" };
+  const goa = plan([{ name: "Goa", days: 4 }]);
+
+  it("is named after the place, and remembers it", async () => {
+    const itinerary = await generateItinerary({ ...india, focus: "Goa" }, goa, undefined, new RatedPlacesProvider(results()));
+    expect(itinerary.title).toBe("Goa Adventure");
+    expect(itinerary.focus).toBe("Goa");
+    expect(itinerary.destination).toBe("India");
+  });
+
+  it("is named after the country when no usable place was given", async () => {
+    for (const focus of [undefined, "", "India", "  "]) {
+      const itinerary = await generateItinerary({ ...india, focus }, goa, undefined, new RatedPlacesProvider(results()));
+      expect(itinerary.title, String(focus)).toBe("India Adventure");
+      expect(itinerary.focus).toBeNull();
+    }
+  });
+
+  it("searches each city with the country, so the place is looked up in the right country", async () => {
+    const provider = new RatedPlacesProvider(results());
+    await generateItinerary({ ...india, focus: "Goa" }, goa, undefined, provider);
+    expect(provider.searches.length).toBeGreaterThan(0);
+    expect(provider.searches.every((s) => s.destination === "Goa" && s.country === "India")).toBe(true);
+  });
+});
+
+describe("places the service puts in another country", () => {
+  const inIndia = (name: string, extra = {}) => ratedPlace(name, 4.5, 2_000, { countryCode: "IN", ...extra });
+  const inFrance = (name: string, extra = {}) => ratedPlace(name, 4.9, 90_000, { countryCode: "FR", ...extra });
+
+  it("are dropped from a search, and places it says nothing about are kept", async () => {
+    const provider = new RatedPlacesProvider({
+      attraction: [inFrance("Eiffel Tower"), inIndia("Fort Aguada"), ratedPlace("Unknown Beach", 4.2, 300), inIndia("Basilica", { countryCode: "in" })],
+    });
+    const found = await searchPlaces(provider, { destination: "Goa", country: "India", type: "attraction" });
+    expect(found.map((p) => p.name)).toEqual(["Fort Aguada", "Unknown Beach", "Basilica"]);
+  });
+
+  it("are kept when the trip's country isn't one TripEase knows, or none is given", async () => {
+    const provider = new RatedPlacesProvider({ attraction: [inFrance("Eiffel Tower"), inIndia("Fort Aguada")] });
+    expect(await searchPlaces(provider, { destination: "Somewhere", country: "Narnia", type: "attraction" })).toHaveLength(2);
+    expect(await searchPlaces(provider, { destination: "Somewhere", type: "attraction" })).toHaveLength(2);
+  });
+
+  it("follow an older trip's free-text destination to its country", async () => {
+    const provider = new RatedPlacesProvider({ attraction: [inFrance("Eiffel Tower"), inIndia("Fort Aguada")] });
+    const found = await searchPlaces(provider, { destination: "Goa", country: "Goa, India", type: "attraction" });
+    expect(found.map((p) => p.name)).toEqual(["Fort Aguada"]);
+  });
+
+  it("never end up in the trip: the best-rated foreign place loses to a local one", async () => {
+    const provider = new RatedPlacesProvider(
+      results({
+        hotel: [inFrance("Paris Grand Hotel", { type: "hotel" }), inIndia("Goa Beach Resort", { type: "hotel" })],
+        attraction: [inFrance("Louvre"), ...attractions().map((p) => ({ ...p, countryCode: "IN" }))],
+      }),
+    );
+    const itinerary = await generateItinerary({ ...draft, destination: "India" }, plan([{ name: "Goa", days: 4 }]), undefined, provider);
+    expect(itinerary.cities[0].hotel.name).toBe("Goa Beach Resort");
+    expect(allActivities(itinerary).some((a) => a.name === "Louvre")).toBe(false);
+  });
+
+  it("leave a city with no hotel in this country, and the trip is refused, naming the place", async () => {
+    const provider = new RatedPlacesProvider(
+      results({ hotel: [inFrance("Paris Grand Hotel", { type: "hotel" })], attraction: attractions() }),
+    );
+    const error = await generateItinerary({ ...draft, destination: "India", focus: "Paris" }, plan([{ name: "Paris", days: 4 }]), undefined, provider).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(PlaceNotFoundError);
+    expect(error).toMatchObject({ code: "no-results", place: "Paris", missing: "hotels" });
+  });
+
+  it("leave a city with nothing to see in this country, and the trip is refused, naming the place", async () => {
+    const provider = new RatedPlacesProvider(results({ attraction: [inFrance("Louvre")] }));
+    const error = await generateItinerary({ ...draft, destination: "India" }, plan([{ name: "Paris", days: 4 }]), undefined, provider).catch((e: unknown) => e);
+    expect(error).toMatchObject({ code: "no-results", place: "Paris", missing: "sights" });
   });
 });

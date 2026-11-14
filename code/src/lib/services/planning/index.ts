@@ -1,3 +1,4 @@
+import { resolveCountry } from "@/lib/countries";
 import { AIProviderError, getAIProvider, type AIProvider } from "@/lib/services/ai";
 import type { CityPlan, CityPlanRequest } from "@/types/planning";
 import { FALLBACK_PLANNER_VERSION, planCitiesDeterministically } from "./fallback-planner";
@@ -39,7 +40,18 @@ export async function planCities(
       const proposal = await provider.planCities(request, repairNote);
 
       const problems: string[] = [];
-      if (!destinationMatches(proposal.destination, request.destination)) {
+      // Told to answer with the country, a model given a focus may still name
+      // the focus ("Goa"); either is the trip that was asked for.
+      // A name match alone is loose ("Tha" is in "Thailand"), so a plan that
+      // names a different supported country is never for this trip.
+      const plannedCountry = resolveCountry(proposal.destination);
+      const tripCountry = resolveCountry(request.destination);
+      const otherCountry = plannedCountry !== null && tripCountry !== null && plannedCountry.code !== tripCountry.code;
+      const forThisTrip =
+        !otherCountry &&
+        (destinationMatches(proposal.destination, request.destination) ||
+          (request.focus ? destinationMatches(proposal.destination, request.focus) : false));
+      if (!forThisTrip) {
         problems.push(
           `The plan is for "${proposal.destination}" but the trip is to "${request.destination}".`,
         );

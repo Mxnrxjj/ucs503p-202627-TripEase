@@ -189,6 +189,82 @@ describe("the new-trip wizard, step by step", () => {
   });
 });
 
+describe("a place inside the country", () => {
+  const planOnly = () =>
+    vi.mocked(postAuthenticated).mockImplementation(async (path: string) =>
+      path === "/api/trips/plan" ? { plan: { cities: [] } } : { itinerary: {}, plan: { cities: [] } },
+    );
+
+  async function generateFromReview() {
+    fireEvent.click(next()); // dates
+    fireEvent.click(next()); // budget
+    fireEvent.click(next()); // travellers
+    fireEvent.click(next()); // style
+    fireEvent.click(next()); // review
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Generate my trip/ }));
+    });
+    await waitFor(() => expect(postAuthenticated).toHaveBeenCalled());
+    return vi.mocked(postAuthenticated).mock.calls[0][1] as Record<string, unknown>;
+  }
+
+  it("is sent, trimmed, and shown on the review step", async () => {
+    planOnly();
+    render(<NewTripPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Thailand" }));
+    fireEvent.click(screen.getByRole("radio", { name: /I know where/ }));
+    setField("Where in Thailand?", "  Krabi  ");
+    fireEvent.click(next()); // dates
+    fireEvent.click(next()); // budget
+    fireEvent.click(screen.getByRole("checkbox", { name: /include flights/i }));
+    fireEvent.click(next()); // travellers
+    fireEvent.click(next()); // style
+    fireEvent.click(next()); // review
+    expect(screen.getByText("Krabi, Thailand")).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Generate my trip/ }));
+    });
+    await waitFor(() => expect(postAuthenticated).toHaveBeenCalled());
+    expect(vi.mocked(postAuthenticated).mock.calls[0][1]).toMatchObject({ destination: "Thailand", focus: "Krabi" });
+  });
+
+  it("is left out of the request when empty", async () => {
+    planOnly();
+    saveDraft({ destination: "India" });
+    render(<NewTripPage />);
+    expect(await generateFromReview()).not.toHaveProperty("focus");
+  });
+
+  it("comes through from the landing page's draft", async () => {
+    planOnly();
+    saveDraft({ destination: "India", focus: "Goa" });
+    render(<NewTripPage />);
+    expect(screen.getByRole("radio", { name: /I know where/ })).toBeChecked();
+    expect(screen.getByRole("textbox", { name: "Where in India?" })).toHaveValue("Goa");
+    expect(await generateFromReview()).toMatchObject({ destination: "India", focus: "Goa" });
+  });
+
+  it("keeps the first step shut until a place is given, and while it isn't a place name", () => {
+    render(<NewTripPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Thailand" }));
+    expect(next()).toBeEnabled();
+    fireEvent.click(screen.getByRole("radio", { name: /I know where/ }));
+    expect(next()).toBeDisabled();
+    setField("Where in Thailand?", "Krabi!");
+    expect(next()).toBeDisabled();
+    setField("Where in Thailand?", "Krabi");
+    expect(next()).toBeEnabled();
+  });
+
+  it("is not sent once the traveller goes back to letting TripEase choose", async () => {
+    planOnly();
+    saveDraft({ destination: "India", focus: "Goa" });
+    render(<NewTripPage />);
+    fireEvent.click(screen.getByRole("radio", { name: /Let TripEase choose/ }));
+    expect(await generateFromReview()).not.toHaveProperty("focus");
+  });
+});
+
 describe("the dates the wizard starts with are always acceptable", () => {
   it("opens with a start in the future and a week-long trip", () => {
     render(<NewTripPage />);

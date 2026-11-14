@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CountryCombobox } from "@/components/ui/country-combobox";
 import { Input } from "@/components/ui/input";
 import { saveDraft } from "@/lib/draft-storage";
+import { focusAfterPick } from "@/lib/trip-focus";
 import { toDateInputValue } from "@/lib/date";
 import { budgetProblem, dateProblems, todayInputValue } from "@/lib/trip-input-checks";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,8 @@ export function TripPlannerWidget({ today = todayInputValue() }: { today?: strin
   const router = useRouter();
   const [dates] = useState(defaultDates);
   const [destination, setDestination] = useState("");
+  // A place picked through the country box ("goa", then India) goes on to the wizard.
+  const [focus, setFocus] = useState({ text: "", country: "" });
   const [startDate, setStartDate] = useState(dates.start);
   const [endDate, setEndDate] = useState(dates.end);
   const [budget, setBudget] = useState("150000");
@@ -68,6 +71,7 @@ export function TripPlannerWidget({ today = todayInputValue() }: { today?: strin
     setSubmitting(true);
     saveDraft({
       destination,
+      ...(focus.text ? { focus: focus.text } : {}),
       startDate,
       endDate,
       budget: Number(budget),
@@ -99,7 +103,13 @@ export function TripPlannerWidget({ today = todayInputValue() }: { today?: strin
           id="hero-destination"
           label="Where to?"
           value={destination}
-          onChange={setDestination}
+          onChange={(country, typed) => {
+            setDestination(country);
+            setFocus((prev) => ({
+              text: focusAfterPick(prev.text, prev.country, country, typed),
+              country: country || prev.country,
+            }));
+          }}
           error={show(countryError)}
         />
 

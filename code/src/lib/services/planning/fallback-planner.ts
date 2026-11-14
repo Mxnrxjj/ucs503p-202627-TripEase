@@ -6,8 +6,11 @@ import { splitDaysAcrossCities } from "./split-days";
  * The planner that runs when there's no AI configured, or when the AI's
  * answer doesn't survive validation. It must never fail and never invent.
  *
- * Two cases, most specific first:
+ * Three cases, most specific first:
  *
+ * 0. The traveller named a place inside the country ("Goa"): the whole trip
+ *    is based there. Which towns of a region are worth splitting it across
+ *    is a reasoning job, and without the AI we don't guess.
  * 1. A supported country (see `@/lib/countries`) has a few real cities written
  *    down for it, so the trip is split across places that exist and are worth
  *    the time.
@@ -18,12 +21,16 @@ import { splitDaysAcrossCities } from "./split-days";
  *    cities for an arbitrary place is a reasoning job; without the AI we
  *    don't guess, we just don't split.
  */
-export const FALLBACK_PLANNER_VERSION = "fallback-3";
+export const FALLBACK_PLANNER_VERSION = "fallback-4";
 
 /** Below this, a stop costs more in travel than it returns in time there. */
 const MIN_DAYS_PER_CITY = 2;
 
 export function planCitiesDeterministically(request: CityPlanRequest): CityAllocation[] {
+  if (request.focus) {
+    return [{ name: request.focus, days: request.dayCount, reason: "The place you asked for" }];
+  }
+
   const country = resolveCountry(request.destination);
   if (country && country.cities.length > 0) {
     const affordableCities = Math.max(1, Math.floor(request.dayCount / MIN_DAYS_PER_CITY));

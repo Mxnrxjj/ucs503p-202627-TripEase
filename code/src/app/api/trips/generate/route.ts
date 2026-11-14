@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authErrorResponse, requireUser } from "@/lib/server/firebase-auth";
 import { generateItinerary } from "@/lib/services/itinerary-generator";
-import { friendlyPlacesMessage, PlacesProviderError, statusForPlacesError } from "@/lib/services/places/errors";
+import {
+  friendlyPlacesMessage,
+  PlaceNotFoundError,
+  placeNotFoundMessage,
+  PlacesProviderError,
+  statusForPlacesError,
+} from "@/lib/services/places/errors";
 import { planCities, validateCityAllocation } from "@/lib/services/planning";
 import { generatedItinerarySchema, newTripInputSchema } from "@/lib/validation/trip";
 import { cityPlanSchema } from "@/lib/validation/planning";
 import { dayCountInclusive, parseDateInput } from "@/lib/date";
+import { cleanFocus } from "@/lib/trip-focus";
 
 /**
  * POST /api/trips/generate
@@ -51,6 +58,7 @@ export async function POST(request: NextRequest) {
   const dayCount = dayCountInclusive(parseDateInput(input.startDate), parseDateInput(input.endDate));
   const planRequest = {
     destination: input.destination,
+    focus: cleanFocus(input.focus, input.destination),
     startDate: input.startDate,
     endDate: input.endDate,
     dayCount,
@@ -90,8 +98,14 @@ export async function POST(request: NextRequest) {
     // traveller is told that, in words, instead of getting a trip made of guesses.
     if (error instanceof PlacesProviderError) {
       console.error(`[places] itinerary generation failed (${error.code})`);
+      // A place of the trip's own that couldn't be found (or wasn't in this
+      // country) is named, so the traveller knows what to change.
+      const message =
+        error instanceof PlaceNotFoundError
+          ? placeNotFoundMessage(error, input.destination)
+          : friendlyPlacesMessage(error.code);
       return NextResponse.json(
-        { error: friendlyPlacesMessage(error.code), code: error.code },
+        { error: message, code: error.code },
         { status: statusForPlacesError(error.code) },
       );
     }

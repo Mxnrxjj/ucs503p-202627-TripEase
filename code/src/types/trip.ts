@@ -19,6 +19,12 @@ export interface Trip {
   status: TripStatus;
 
   destination: string;
+  /**
+   * The place in the destination country the trip is about ("Goa" in India),
+   * as the traveller typed it. Absent or null means the whole country: trips
+   * saved before this existed have none. See `@/lib/trip-focus`.
+   */
+  focus?: string | null;
   title: string;
   startDate: string;
   endDate: string;
@@ -55,6 +61,8 @@ export interface Trip {
 /** The subset of a trip decided in the create-trip wizard, before generation. */
 export interface TripDraftInput {
   destination: string;
+  /** Optional place inside the destination country to plan around ("Goa"). */
+  focus?: string;
   startDate: string;
   endDate: string;
   budget: number;
@@ -77,6 +85,8 @@ export interface TripDraftInput {
 /** What the itinerary generator produces; validated, then persisted as a Trip. */
 export interface GeneratedItinerary {
   destination: string;
+  /** The place the trip was planned around, or null for the whole country. */
+  focus?: string | null;
   title: string;
   startDate: string;
   endDate: string;

@@ -10,12 +10,15 @@ import {
   budgetStepProblem,
   flightsIncluded,
   flightsReady,
+  focusStepProblem,
   type WizardData,
 } from "@/components/trips/wizard/steps";
 import { COUNTRIES } from "@/lib/countries";
 
 const EMPTY: WizardData = {
   destination: "",
+  focusMode: "anywhere",
+  focus: "",
   startDate: "2027-01-10",
   endDate: "2027-01-17",
   budget: "150000",
@@ -311,5 +314,189 @@ describe("budgetStepProblem", () => {
     );
     expect(budgetStepProblem({ ...EMPTY, destination: "Japan", flyingFrom: "DEL" })).toBeNull();
     expect(budgetStepProblem({ ...EMPTY, destination: "India" })).toBeNull();
+  });
+});
+
+function FocusHarness({ initial = "", focus = "" }: { initial?: string; focus?: string }) {
+  const [data, setData] = useState<WizardData>({ ...EMPTY, destination: initial, focus, focusMode: focus ? "place" : "anywhere" });
+  return (
+    <>
+      <DestinationStep data={data} setData={(patch) => setData((prev) => ({ ...prev, ...(typeof patch === "function" ? patch(prev) : patch) }))} />
+      <output data-testid="chosen">{data.destination}</output>
+      <output data-testid="focus">{data.focus}</output>
+      <output data-testid="mode">{data.focusMode}</output>
+      <output data-testid="problem">{focusStepProblem(data) ?? ""}</output>
+    </>
+  );
+}
+
+const focusValue = () => screen.getByTestId("focus").textContent;
+const modeValue = () => screen.getByTestId("mode").textContent;
+const countryBox = () => screen.getByRole("combobox", { name: "Destination" });
+const typeAndPick = (text: string) => {
+  fireEvent.change(countryBox(), { target: { value: text } });
+  fireEvent.keyDown(countryBox(), { key: "Enter" });
+};
+const letTripEaseChoose = () => screen.getByRole("radio", { name: /Let TripEase choose the cities/ });
+const iKnowWhere = () => screen.getByRole("radio", { name: /I know where I want to go/ });
+const placeBox = () => screen.queryByRole("textbox", { name: /^Where in / });
+/** The message shown under the place box, if any. */
+const shownError = () => document.getElementById("focus-error")?.textContent ?? null;
+
+describe("DestinationStep: which part of the country", () => {
+  it("asks only once a country is chosen, starting with 'let TripEase choose'", () => {
+    render(<FocusHarness />);
+    expect(screen.queryByRole("radio")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Thailand" }));
+    expect(screen.getByRole("group", { name: "Which part of Thailand?" })).toBeInTheDocument();
+    expect(letTripEaseChoose()).toBeChecked();
+    expect(iKnowWhere()).not.toBeChecked();
+    expect(placeBox()).toBeNull();
+  });
+
+  it("opens the place box when the traveller knows where, suggesting real cities", () => {
+    render(<FocusHarness initial="Thailand" />);
+    fireEvent.click(iKnowWhere());
+    expect(modeValue()).toBe("place");
+    expect(placeBox()).toHaveAttribute("placeholder", "e.g. Bangkok, Phuket");
+    fireEvent.change(placeBox()!, { target: { value: "Krabi" } });
+    expect(focusValue()).toBe("Krabi");
+  });
+
+  it("does not suggest the country itself for a one-city country", () => {
+    render(<FocusHarness initial="Singapore" />);
+    fireEvent.click(iKnowWhere());
+    expect(placeBox()).toHaveAttribute("placeholder", "e.g. an area you'd like to stay in");
+  });
+
+  it("forgets the place when the traveller goes back to letting TripEase choose", () => {
+    render(<FocusHarness initial="India" focus="Shimla" />);
+    expect(iKnowWhere()).toBeChecked();
+    fireEvent.click(letTripEaseChoose());
+    expect(modeValue()).toBe("anywhere");
+    expect(focusValue()).toBe("");
+    expect(placeBox()).toBeNull();
+  });
+
+  it("uses the place that was typed to find the country", () => {
+    render(<FocusHarness />);
+    typeAndPick("goa");
+    expect(chosen()).toBe("India");
+    expect(focusValue()).toBe("Goa");
+    expect(iKnowWhere()).toBeChecked();
+    expect(placeBox()).toHaveValue("Goa");
+  });
+
+  it("does not treat another name for the country as a place", () => {
+    render(<FocusHarness />);
+    typeAndPick("thai");
+    expect(chosen()).toBe("Thailand");
+    expect(focusValue()).toBe("");
+    expect(letTripEaseChoose()).toBeChecked();
+  });
+
+  it("keeps the place when the same country is chosen again, and starts over for another country", () => {
+    render(<FocusHarness initial="India" focus="Shimla" />);
+    typeAndPick("indi");
+    expect(chosen()).toBe("India");
+    expect(focusValue()).toBe("Shimla");
+    expect(modeValue()).toBe("place");
+    fireEvent.click(screen.getByRole("button", { name: "Thailand" }));
+    expect(focusValue()).toBe("");
+    expect(modeValue()).toBe("anywhere");
+  });
+
+  it("keeps 'I know where' for the same country even before a place is typed", () => {
+    render(<FocusHarness initial="Thailand" />);
+    fireEvent.click(iKnowWhere());
+    fireEvent.click(screen.getByRole("button", { name: "Thailand" }));
+    expect(modeValue()).toBe("place");
+  });
+
+  it("keeps 'I know where' while the country box is retyped, before any place is typed", () => {
+    render(<FocusHarness initial="Thailand" />);
+    fireEvent.click(iKnowWhere());
+    fireEvent.change(countryBox(), { target: { value: "thai" } });
+    expect(chosen()).toBe("");
+    expect(modeValue()).toBe("place");
+    fireEvent.keyDown(countryBox(), { key: "Enter" });
+    expect(chosen()).toBe("Thailand");
+    expect(modeValue()).toBe("place");
+  });
+
+  it("remembers which country a place was written for, after a change of country", () => {
+    render(<FocusHarness initial="India" focus="Shimla" />);
+    fireEvent.click(screen.getByRole("button", { name: "Thailand" }));
+    fireEvent.click(iKnowWhere());
+    fireEvent.change(placeBox()!, { target: { value: "Krabi" } });
+    fireEvent.click(screen.getByRole("button", { name: "Thailand" }));
+    expect(focusValue()).toBe("Krabi");
+  });
+
+  it("keeps the place while the country box is being retyped", () => {
+    render(<FocusHarness initial="India" focus="Shimla" />);
+    fireEvent.change(countryBox(), { target: { value: "indi" } });
+    expect(chosen()).toBe("");
+    expect(focusValue()).toBe("Shimla");
+    expect(modeValue()).toBe("place");
+    fireEvent.keyDown(countryBox(), { key: "Enter" });
+    expect(focusValue()).toBe("Shimla");
+    typeAndPick("japan");
+    expect(focusValue()).toBe("");
+  });
+
+  it("says what's wrong with text that isn't a place name, straight away", () => {
+    render(<FocusHarness initial="India" focus="Goa!" />);
+    expect(shownError()).toMatch(/Use a place name/);
+  });
+
+  it("waits until the box is left before asking for a place, or calling one letter too short", () => {
+    render(<FocusHarness initial="India" />);
+    fireEvent.click(iKnowWhere());
+    expect(screen.getByTestId("problem").textContent).toBe("Type the place, or let TripEase choose the cities.");
+    expect(shownError()).toBeNull();
+    fireEvent.blur(placeBox()!);
+    expect(shownError()).toBe("Type the place, or let TripEase choose the cities.");
+    fireEvent.change(placeBox()!, { target: { value: "G" } });
+    expect(shownError()).toMatch(/at least 2/);
+  });
+
+  it("does not call one letter too short while it is still being typed", () => {
+    render(<FocusHarness initial="India" />);
+    fireEvent.click(iKnowWhere());
+    fireEvent.change(placeBox()!, { target: { value: "G" } });
+    expect(shownError()).toBeNull();
+    fireEvent.change(placeBox()!, { target: { value: "Go" } });
+    expect(shownError()).toBeNull();
+  });
+
+  it("explains how to plan a place the country list doesn't know", async () => {
+    render(<FocusHarness />);
+    fireEvent.change(countryBox(), { target: { value: "Rishikesh" } });
+    expect(await screen.findByText(/choose the country it's in, then pick “I know where I want to go” below/)).toBeInTheDocument();
+  });
+});
+
+describe("focusStepProblem", () => {
+  it("asks nothing when TripEase chooses the cities", () => {
+    expect(focusStepProblem({ focusMode: "anywhere", focus: "" })).toBeNull();
+    expect(focusStepProblem({ focusMode: "anywhere", focus: "!!" })).toBeNull();
+  });
+
+  it("wants a place name when the traveller knows where", () => {
+    expect(focusStepProblem({ focusMode: "place", focus: "" })).toBe("Type the place, or let TripEase choose the cities.");
+    expect(focusStepProblem({ focusMode: "place", focus: "   " })).toBe("Type the place, or let TripEase choose the cities.");
+    expect(focusStepProblem({ focusMode: "place", focus: "Goa!" })).toMatch(/place name/);
+    expect(focusStepProblem({ focusMode: "place", focus: "Goa" })).toBeNull();
+  });
+});
+
+describe("ReviewStep destination", () => {
+  it("shows the place and its country, or just the country", () => {
+    const { unmount } = render(<ReviewStep data={{ ...EMPTY, destination: "India", focusMode: "place", focus: "Goa" }} />);
+    expect(screen.getByText("Goa, India")).toBeInTheDocument();
+    unmount();
+    render(<ReviewStep data={{ ...EMPTY, destination: "India", focus: "" }} />);
+    expect(screen.getByText("India")).toBeInTheDocument();
   });
 });

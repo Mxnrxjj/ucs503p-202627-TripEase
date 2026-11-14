@@ -1,9 +1,11 @@
 import { addDaysIso } from "@/lib/utils";
+import { resolveCountry } from "@/lib/countries";
+import { cleanFocus } from "@/lib/trip-focus";
 import { fromInr, toInr } from "@/lib/fx";
 import { hotelRate, rateBasisOf, TIER_STARS, type HotelRate, type HotelTier } from "@/lib/hotels/rates";
 import { quoteFlights } from "@/lib/flights/quote";
 import { getPlacesProvider } from "@/lib/services/places";
-import { PlacesProviderError } from "@/lib/services/places/errors";
+import { PlaceNotFoundError } from "@/lib/services/places/errors";
 import { nightsInCity } from "@/lib/hotel-nights";
 import { pickHotel, rankByQuality, withoutDuplicates } from "@/lib/services/places/ranking";
 import type { PlaceSearchParams, PlacesProvider } from "@/lib/services/places/provider";
@@ -39,9 +41,20 @@ import type { GeneratedItinerary, TripDraftInput } from "@/types/trip";
  * day without them is simply a lighter day.
  */
 
-/** Search, letting a real failure through. An empty answer is a normal answer. */
+/**
+ * Search, letting a real failure through. An empty answer is a normal answer.
+ *
+ * A search is phrased "<place>, <country>", but the service still answers with
+ * the best match anywhere: "hotels in Paris, India" can come back as hotels in
+ * France. So a place the service says is in another country is dropped. One it
+ * says nothing about is kept, and so is everything when the trip's country
+ * isn't one TripEase knows (older trips saved as free text).
+ */
 export async function searchPlaces(provider: PlacesProvider, params: PlaceSearchParams): Promise<Place[]> {
-  return provider.searchPlaces(params);
+  const places = await provider.searchPlaces(params);
+  const country = params.country ? resolveCountry(params.country) : null;
+  if (!country) return places;
+  return places.filter((place) => !place.countryCode || place.countryCode.toUpperCase() === country.code);
 }
 
 export function makeId(prefix: string): string {
@@ -149,11 +162,11 @@ async function fetchCityPlaces(
 
   const hotel = pickHotel(hotels);
   if (!hotel) {
-    throw new PlacesProviderError("no-results", `No hotels were found in ${cityName}.`);
+    throw new PlaceNotFoundError(cityName, "hotels");
   }
   if (attractions.length === 0) {
     // A city with nothing to see is almost always a name the service doesn't know.
-    throw new PlacesProviderError("no-results", `Nothing to see was found in ${cityName}.`);
+    throw new PlaceNotFoundError(cityName, "sights");
   }
 
   // Best first, so the days are built from the best places and the three meal
@@ -591,9 +604,13 @@ export async function generateItinerary(
     flightCostTotal,
   });
 
+  // Named for the place the traveller asked for, when they asked for one.
+  const focus = cleanFocus(input.focus, input.destination);
+
   return {
     destination: input.destination,
-    title: `${input.destination} Adventure`,
+    focus,
+    title: `${focus ?? input.destination} Adventure`,
     startDate: input.startDate,
     endDate: input.endDate,
     dayCount,

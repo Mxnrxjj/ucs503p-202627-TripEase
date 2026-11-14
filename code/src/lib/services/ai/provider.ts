@@ -117,11 +117,19 @@ export const CITY_PLANNER_SYSTEM_PROMPT = [
   "- Weight the choice towards the traveller's stated preferences.",
   "",
   "- `reason` is one short phrase (under 12 words) explaining why that city earns its days.",
+  "",
+  "When a focus is given, the traveller wants that place, not the whole country:",
+  "- Every city must be inside the focus or right beside it. Never add a city elsewhere in the country.",
+  "- If the focus is one town or city, plan the whole trip there as a single city, using its usual name.",
+  "- If the focus is a region (a state, island or valley), choose real towns inside it.",
+  "- `destination` in your reply is still the country.",
 ].join("\n");
 
 export function buildCityPlannerUserPrompt(request: CityPlanRequest): string {
   return [
     `Destination: ${request.destination}`,
+    // JSON-quoted: it's the traveller's own text, so it is data, not instructions.
+    ...(request.focus ? [`Focus (a place inside ${request.destination}): ${JSON.stringify(request.focus)}`] : []),
     `Trip length: ${request.dayCount} days (${request.startDate} to ${request.endDate})`,
     `Travellers: ${request.travelers}`,
     `Total budget: ${request.budget} ${request.currency} for the whole trip, all travellers`,

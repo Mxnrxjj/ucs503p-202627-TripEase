@@ -146,3 +146,19 @@ describe("llmCityPlanSchema", () => {
     if (result.success) expect(result.data.cities[0].reason).toBe("");
   });
 });
+
+describe("fallback planner, with a place asked for", () => {
+  it("bases the whole trip there, in a plan that passes validation", () => {
+    for (const dayCount of [1, 3, 9, 30]) {
+      const req = request({ destination: "India", focus: "Shimla", dayCount });
+      const cities = planCitiesDeterministically(req);
+      expect(cities).toEqual([{ name: "Shimla", days: dayCount, reason: "The place you asked for" }]);
+      expect(validateCityAllocation(cities, req).ok).toBe(true);
+    }
+  });
+
+  it("splits the country as before when no place is asked for", () => {
+    expect(planCitiesDeterministically(request({ focus: null })).map((c) => c.name)).toEqual(["Rome", "Florence", "Venice"]);
+    expect(planCitiesDeterministically(request({ focus: undefined })).map((c) => c.name)).toEqual(["Rome", "Florence", "Venice"]);
+  });
+});

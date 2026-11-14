@@ -3,6 +3,7 @@ import { authErrorResponse, requireUser } from "@/lib/server/firebase-auth";
 import { planCities } from "@/lib/services/planning";
 import { newTripInputSchema } from "@/lib/validation/trip";
 import { dayCountInclusive, parseDateInput } from "@/lib/date";
+import { cleanFocus } from "@/lib/trip-focus";
 
 /**
  * POST /api/trips/plan
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest) {
   try {
     const plan = await planCities({
       destination: input.destination,
+      focus: cleanFocus(input.focus, input.destination),
       startDate: input.startDate,
       endDate: input.endDate,
       dayCount,

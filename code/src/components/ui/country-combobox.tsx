@@ -36,6 +36,7 @@ export function CountryCombobox({
   debounceMs = 180,
   hint,
   error,
+  noMatchHint,
   hideLabel = false,
   labelClassName,
   className,
@@ -43,12 +44,19 @@ export function CountryCombobox({
   id: string;
   label: string;
   value: string;
-  onChange: (country: string) => void;
+  /**
+   * Called with the chosen country's name, or "" while nothing is chosen. When
+   * the traveller picks from the list, `typed` is what they had typed to find
+   * it ("goa" for India), so a caller can tell which place they meant.
+   */
+  onChange: (country: string, typed?: string) => void;
   placeholder?: string;
   autoFocus?: boolean;
   debounceMs?: number;
   hint?: string;
   error?: string | null;
+  /** Replaces the advice shown under "No match for …". */
+  noMatchHint?: string;
   hideLabel?: boolean;
   labelClassName?: string;
   className?: string;
@@ -92,12 +100,15 @@ export function CountryCombobox({
   const showEmpty = open && settled && results.length === 0 && text.trim() !== "";
 
   function choose(country: Country) {
+    // Only what the traveller typed counts: with the box untouched, the text
+    // is just the country chosen before.
+    const typed = edited ? text : undefined;
     setText(country.name);
     setQuery("");
     setEdited(false);
     setOpen(false);
     setCommitted(country.name);
-    onChange(country.name);
+    onChange(country.name, typed);
   }
 
   function handleType(next: string) {
@@ -275,8 +286,9 @@ export function CountryCombobox({
           role="status"
           className="absolute left-0 right-0 top-full z-40 mt-2 rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm text-zinc-600 shadow-2xl shadow-zinc-900/10 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
         >
-          No match for &ldquo;{text.trim()}&rdquo;. TripEase plans trips to {COUNTRIES.length} countries, so try a
-          country or a well-known city in one.
+          No match for &ldquo;{text.trim()}&rdquo;.{" "}
+          {noMatchHint ??
+            `TripEase plans trips to ${COUNTRIES.length} countries, so try a country or a well-known city in one.`}
         </p>
       ) : null}
 
