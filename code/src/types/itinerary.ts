@@ -1,3 +1,4 @@
+import type { HotelRateBasis } from "@/lib/hotels/rates";
 import type { LatLng, Rating, SourceRef } from "./place";
 
 export type ActivityCategory =
@@ -62,6 +63,8 @@ export interface Hotel {
   imageUrl?: string | null;
   source?: SourceRef | null;
   priceIsEstimate?: boolean;
+  /** What the estimated price is based on (see `@/lib/hotels/rates`). Absent on trips saved before it existed. */
+  rateBasis?: HotelRateBasis;
 }
 
 export interface TripDay {

@@ -122,41 +122,100 @@ describe("choosing the best", () => {
     }
   });
 
-  it("chooses the best-rated hotel that fits the budget", async () => {
-    const provider = new RatedPlacesProvider(
-      results({
-        hotel: [
-          ratedPlace("Palace Hotel", 4.9, 9_000, { type: "hotel", price: { amount: 60_000, currency: "INR", isEstimate: true } }),
-          ratedPlace("Comfort Inn", 4.5, 3_000, { type: "hotel", price: { amount: 4_000, currency: "INR", isEstimate: true } }),
-          ratedPlace("Cheap Stay", 3.9, 200, { type: "hotel", price: { amount: 800, currency: "INR", isEstimate: true } }),
-        ],
-      }),
-    );
-    const itinerary = await generateItinerary({ ...draft, budget: 80_000 }, oneCity, undefined, provider);
-    expect(itinerary.cities[0].hotel.name).toBe("Comfort Inn");
+  // Delhi's typical prices are ₹2,700 / ₹3,600 / ₹15,000 for 3, 4 and 5 stars,
+  // ₹2,835 / ₹3,780 / ₹17,700 with GST. 4 days is 3 nights.
+  const delhi = plan([{ name: "Delhi", days: 4 }]);
+  const india = { ...draft, destination: "India" };
+  const hotels = () =>
+    results({
+      hotel: [
+        ratedPlace("Palace Hotel", 4.9, 9_000, { type: "hotel", price: { amount: 60_000, currency: "INR", isEstimate: true } }),
+        ratedPlace("Comfort Inn", 4.5, 3_000, { type: "hotel" }),
+      ],
+    });
+
+  it("asks for the class of hotel the budget allows, takes the best-rated, and prices it at that class", async () => {
+    // 40% of 1,00,000 over 3 nights is about ₹13,333 a room: 4-star fits, 5-star doesn't.
+    const provider = new RatedPlacesProvider(hotels());
+    const itinerary = await generateItinerary(india, delhi, undefined, provider);
+    const hotel = itinerary.cities[0].hotel;
+    expect(provider.searches.find((s) => s.type === "hotel")?.hotelClass).toBe(4);
+    expect(hotel.name).toBe("Palace Hotel");
+    expect(hotel.pricePerNight).toBe(3_780); // not the place's own 60,000
+    expect(hotel.rateBasis).toEqual({ tier: "mid", basis: "city", from: "Delhi", includesTax: true });
+    // Not even `kind: undefined`: Firestore refuses to save an undefined field.
+    expect(Object.keys(hotel.rateBasis ?? {})).not.toContain("kind");
+    expect(itinerary.budget.categories.hotels).toBe(3_780 * 3);
   });
 
-  it("lets a bigger party, which books more rooms, pay less for each one", async () => {
-    // 4 days is 3 nights. 40% of 1,00,000 over 3 nights is about 13,333 a room
-    // for two people (one room), but about 3,333 a room for eight (four rooms).
-    const hotelsByPrice = () =>
-      results({
-        hotel: [
-          ratedPlace("Grand Stay", 4.9, 5_000, { type: "hotel", price: { amount: 10_000, currency: "INR", isEstimate: true } }),
-          ratedPlace("Budget Inn", 4.3, 2_000, { type: "hotel", price: { amount: 3_000, currency: "INR", isEstimate: true } }),
-        ],
-      });
-    const couple = await generateItinerary({ ...draft, travelers: 2 }, oneCity, undefined, new RatedPlacesProvider(hotelsByPrice()));
+  it("goes up a class when the budget allows it", async () => {
+    // About ₹26,667 a room a night: 5-star (₹17,700) fits.
+    const provider = new RatedPlacesProvider(hotels());
+    const itinerary = await generateItinerary({ ...india, budget: 200_000 }, delhi, undefined, provider);
+    expect(provider.searches.find((s) => s.type === "hotel")?.hotelClass).toBe(5);
+    expect(itinerary.cities[0].hotel.pricePerNight).toBe(17_700);
+    expect(itinerary.cities[0].hotel.rateBasis?.tier).toBe("upscale");
+  });
+
+  it("puts a bigger party, which books more rooms, in a cheaper class", async () => {
+    // Two people: one room, ₹13,333 a night, 4-star. Eight: four rooms,
+    // ₹3,333 each, so 3-star (₹2,835).
+    const couple = await generateItinerary(india, delhi, undefined, new RatedPlacesProvider(hotels()));
     const group = await generateItinerary(
-      { ...draft, travelers: 8, travelerType: "friends" },
-      oneCity,
+      { ...india, travelers: 8, travelerType: "friends" },
+      delhi,
       undefined,
-      new RatedPlacesProvider(hotelsByPrice()),
+      new RatedPlacesProvider(hotels()),
     );
-    expect(couple.cities[0].hotel.name).toBe("Grand Stay");
-    expect(group.cities[0].hotel.name).toBe("Budget Inn");
-    expect(couple.budget.categories.hotels).toBe(10_000 * 3);
-    expect(group.budget.categories.hotels).toBe(3_000 * 3 * 4);
+    expect(couple.cities[0].hotel.rateBasis?.tier).toBe("mid");
+    expect(group.cities[0].hotel.rateBasis?.tier).toBe("budget");
+    expect(couple.budget.categories.hotels).toBe(3_780 * 3);
+    expect(group.budget.categories.hotels).toBe(2_835 * 3 * 4);
+  });
+
+  it("uses 3-star when even that is over the budget, so the budget shows as tight", async () => {
+    const provider = new RatedPlacesProvider(hotels());
+    const itinerary = await generateItinerary({ ...india, budget: 5_000 }, delhi, undefined, provider);
+    expect(itinerary.cities[0].hotel.rateBasis?.tier).toBe("budget");
+    expect(itinerary.cities[0].hotel.pricePerNight).toBe(2_835);
+  });
+
+  it("converts the price into the trip's currency and compares the budget in rupees", async () => {
+    // $1,500 is ₹1,24,500 (₹83 a dollar): about ₹16,600 a room a night, 4-star.
+    const itinerary = await generateItinerary(
+      { ...india, budget: 1_500, currency: "USD" },
+      delhi,
+      undefined,
+      new RatedPlacesProvider(hotels()),
+    );
+    const hotel = itinerary.cities[0].hotel;
+    expect(hotel.rateBasis?.tier).toBe("mid");
+    expect(hotel.currency).toBe("USD");
+    expect(hotel.pricePerNight).toBe(46); // 3,780 / 83 = 45.5, in whole dollars
+  });
+
+  it("prices a city with no figures of its own from the closest figures, and says so", async () => {
+    const itinerary = await generateItinerary(
+      india,
+      plan([{ name: "Kochi", days: 4 }]),
+      undefined,
+      new RatedPlacesProvider(hotels()),
+    );
+    expect(itinerary.cities[0].hotel.rateBasis).toEqual({ tier: "mid", basis: "country", from: "Delhi", includesTax: true });
+  });
+
+  it("models a city with no figures from its country's main city, and saves what it was scaled for", async () => {
+    // Santorini: Athens's prices times the beach ratio, ₹12,200 / ₹20,400 / ₹42,800.
+    // ₹13,333 a room a night fits 3-star, not 4-star.
+    const itinerary = await generateItinerary(
+      { ...draft, destination: "Greece" },
+      plan([{ name: "Santorini", days: 4 }]),
+      undefined,
+      new RatedPlacesProvider(hotels()),
+    );
+    const hotel = itinerary.cities[0].hotel;
+    expect(hotel.rateBasis).toEqual({ tier: "budget", basis: "modelled", from: "Athens", includesTax: false, kind: "beach" });
+    expect(hotel.pricePerNight).toBe(12_200);
   });
 
   it("labels the hotel's price as an estimate, since Google gives only a price level", async () => {

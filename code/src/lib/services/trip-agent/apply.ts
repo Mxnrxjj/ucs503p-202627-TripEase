@@ -2,6 +2,7 @@ import { flightDraftFields } from "@/lib/flights/draft";
 import { fromInr } from "@/lib/fx";
 import { computeBudgetBreakdown } from "@/lib/services/budget-engine";
 import { analyzeTrip } from "@/lib/services/feasibility";
+import { hotelRate, shiftTier, TIER_STARS } from "@/lib/hotels/rates";
 import { generateItinerary, placeToActivity, placeToHotel, searchPlaces } from "@/lib/services/itinerary-generator";
 import { qualityScore } from "@/lib/services/places/ranking";
 import type { PlacesProvider } from "@/lib/services/places/provider";
@@ -163,9 +164,13 @@ async function findPlace(
   type: PlaceType,
   query: string,
   avoid: Set<string>,
+  /** For a hotel: look for this star class, when the traveller asked for a different one. */
+  hotelClass?: 3 | 4 | 5,
 ): Promise<Place | null> {
   const words = queryWords(query);
-  if (words.length === 0) return null;
+  // "A cheaper, well-rated hotel" has no word a hotel's own text would contain, so for a
+  // class change the search itself (3-star hotels in this city) is what narrows it down.
+  if (words.length === 0 && !hotelClass) return null;
 
   const results = await searchPlaces(deps.places, {
     destination: cityName,
@@ -174,6 +179,7 @@ async function findPlace(
     query,
     currency: trip.currency,
     limit: 8,
+    ...(hotelClass ? { hotelClass } : {}),
   });
 
   // The place that best matches what was asked; among equals, the best rated.
@@ -181,7 +187,7 @@ async function findPlace(
   for (const place of results) {
     if (avoid.has(place.name.toLowerCase())) continue;
     const score = relevance(place, words);
-    if (score === 0) continue;
+    if (score === 0 && !hotelClass) continue;
     const quality = qualityScore(place) ?? 0;
     if (!best || score > best.score || (score === best.score && quality > best.quality)) best = { place, score, quality };
   }
@@ -355,12 +361,38 @@ async function applyActivityOperation(trip: AgentTrip, op: EditOperation, w: Wor
     case "change_hotel": {
       const city = w.cities.find((c) => c.id === op.cityId);
       if (!city) return void w.problems.push(`There's no city "${op.cityId}" in this trip.`);
-      const place = await findPlace(deps, trip, city.name, "hotel", op.query, new Set([city.hotel.name.toLowerCase()]));
-      if (!place) return void w.problems.push(`I couldn't find a hotel matching "${op.query}" in ${city.name}.`);
-      const hotel = placeToHotel(place, city.hotel.nights, trip.currency);
+      // Priced as the same class as the hotel it replaces, unless the traveller
+      // asked for a cheaper or dearer one: a different hotel is not a different
+      // budget. (4-star for a hotel saved before classes existed.)
+      const current = city.hotel.rateBasis?.tier ?? "mid";
+      const tier = op.starClass ? shiftTier(current, op.starClass) : current;
+      const place = await findPlace(
+        deps,
+        trip,
+        city.name,
+        "hotel",
+        op.query,
+        new Set([city.hotel.name.toLowerCase()]),
+        op.starClass ? TIER_STARS[tier] : undefined,
+      );
+      if (!place) {
+        return void w.problems.push(
+          op.starClass
+            ? `I couldn't find another ${TIER_STARS[tier]}-star hotel in ${city.name}.`
+            : `I couldn't find a hotel matching "${op.query}" in ${city.name}.`,
+        );
+      }
+      const rate = hotelRate({ city: city.name, destination: trip.destination, maxPerNightInr: null, tier });
+      const hotel = placeToHotel(place, city.hotel.nights, trip.currency, rate);
       w.cities = w.cities.map((c) => (c.id === city.id ? { ...c, hotel } : c));
       if (place.isDemoData) w.usedUnverifiedPlace = true;
-      w.lines.push(`Change the ${city.name} hotel from ${city.hotel.name} to ${hotel.name}.`);
+      const stars = `${TIER_STARS[tier]}-star`;
+      const classNote = !op.starClass
+        ? ""
+        : tier !== current
+          ? ` (${stars}, one class ${op.starClass === "lower" ? "cheaper" : "dearer"})`
+          : ` (${stars}: already the ${op.starClass === "lower" ? "cheapest" : "dearest"} class)`;
+      w.lines.push(`Change the ${city.name} hotel from ${city.hotel.name} to ${hotel.name}${classNote}.`);
       return;
     }
 

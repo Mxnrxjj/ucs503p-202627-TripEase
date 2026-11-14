@@ -69,6 +69,42 @@ describe("HotelCard", () => {
     expect(text).toContain(formatMoney(base.hotel.pricePerNight * 2 * 3, "INR"));
   });
 
+  it("says what an estimated price is based on", () => {
+    render(<HotelCard city={withNights(2)} currency="INR" travelers={2} onEdit={vi.fn()} />);
+    expect(screen.getByText(`Typical 4-star price in ${base.name}`)).toBeInTheDocument();
+  });
+
+  it("says when an estimated price was modelled from another city", () => {
+    const city = withNights(2);
+    const rateBasis = { tier: "mid" as const, basis: "modelled" as const, from: "Athens", includesTax: false, kind: "beach" as const };
+    render(<HotelCard city={{ ...city, hotel: { ...city.hotel, rateBasis } }} currency="INR" travelers={2} onEdit={vi.fn()} />);
+    expect(screen.getByText("Estimated 4-star price for a beach town, from Athens prices")).toBeInTheDocument();
+  });
+
+  it("says when a class's price was worked out from the city's 4-star", () => {
+    const city = withNights(2);
+    const rateBasis = { tier: "upscale" as const, basis: "city" as const, from: "Phuket", includesTax: false, derived: true as const };
+    render(<HotelCard city={{ ...city, hotel: { ...city.hotel, rateBasis } }} currency="INR" travelers={2} onEdit={vi.fn()} />);
+    expect(screen.getByText("Estimated 5-star price in Phuket, worked out from its 4-star")).toBeInTheDocument();
+  });
+
+  it("says nothing about a basis once the traveller has typed in the real price", () => {
+    const city = withNights(2);
+    render(
+      <HotelCard city={{ ...city, hotel: { ...city.hotel, priceIsEstimate: false } }} currency="INR" travelers={2} onEdit={vi.fn()} />,
+    );
+    expect(screen.queryByText(/Typical|Based on|Rough|Estimated/)).not.toBeInTheDocument();
+  });
+
+  it("shows a hotel saved before prices had a basis without one", () => {
+    const city = withNights(2);
+    const { rateBasis: _dropped, ...oldHotel } = city.hotel;
+    void _dropped;
+    render(<HotelCard city={{ ...city, hotel: oldHotel }} currency="INR" travelers={2} onEdit={vi.fn()} />);
+    expect(screen.queryByText(/Typical|Based on|Rough|Estimated/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button").textContent).toContain("/night");
+  });
+
   it("asks for the price of one room when editing", () => {
     render(<HotelCard city={withNights(2)} currency="INR" travelers={4} onEdit={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: new RegExp(`Edit hotel in ${base.name}`) }));

@@ -90,6 +90,7 @@ export const llmOperationSchema = z.object({
   cityId: optionalText,
   query: optionalText,
   category: z.enum(CATEGORIES).nullish(),
+  starClass: z.enum(["lower", "higher"]).nullish(),
   dayCount: z.number().int().nullish(),
   cities: z
     .array(z.object({ name: z.string().trim().min(1).max(80), days: z.number().int().min(1).max(60) }))
@@ -141,7 +142,8 @@ export function toEditOperation(raw: LlmOperation, position: number): EditOperat
     case "change_hotel": {
       if (!raw.cityId) return need("cityId");
       const query = QUERY.safeParse(raw.query ?? "");
-      return query.success ? { type: raw.type, cityId: raw.cityId, query: query.data } : need("query");
+      if (!query.success) return need("query");
+      return { type: raw.type, cityId: raw.cityId, query: query.data, ...(raw.starClass ? { starClass: raw.starClass } : {}) };
     }
     case "set_cities":
       return raw.cities && raw.cities.length > 0 ? { type: raw.type, cities: raw.cities } : need("cities");

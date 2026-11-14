@@ -69,19 +69,13 @@ export function withoutDuplicates<T extends Place>(places: T[]): T[] {
 }
 
 /**
- * Choose a hotel: the best-rated one that fits the budget.
- *
- * `maxPerNight` is what the trip can spend on one room for a night. A hotel whose price is
- * known (from the provider's coarse price level) and above it is passed over.
- * One with no known price is allowed, since not knowing is not the same as
- * expensive. If nothing fits, the best-rated one is used anyway: a traveller
- * would rather be told the budget is tight than be given no hotel.
+ * Choose a hotel: the best-rated one. The search already asked for the class
+ * of hotel the budget allows, and the price comes from that class's typical
+ * price (`@/lib/hotels/rates`), not from the place, since Google doesn't say
+ * what a hotel charges.
  */
-export function pickHotel<T extends Place>(hotels: T[], maxPerNight: number | null): T | null {
-  const ranked = rankByQuality(withoutDuplicates(hotels));
-  if (ranked.length === 0) return null;
-  if (maxPerNight === null) return ranked[0];
-  return ranked.find((hotel) => !hotel.price || hotel.price.amount <= maxPerNight) ?? ranked[0];
+export function pickHotel<T extends Place>(hotels: T[]): T | null {
+  return rankByQuality(withoutDuplicates(hotels))[0] ?? null;
 }
 
 /** The best few, with enough reviews to be worth calling "highly rated". Falls back to whatever there is. */

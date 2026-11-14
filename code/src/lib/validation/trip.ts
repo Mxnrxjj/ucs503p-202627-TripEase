@@ -100,6 +100,15 @@ export const activitySchema = z.object({
   ...placeProvenanceFields,
 });
 
+export const hotelRateBasisSchema = z.object({
+  tier: z.enum(["budget", "mid", "upscale"]),
+  basis: z.enum(["city", "modelled", "country", "region", "world"]),
+  from: z.string().max(80),
+  includesTax: z.boolean(),
+  kind: z.enum(["city", "heritage", "beach", "nature"]).optional(),
+  derived: z.literal(true).optional(),
+});
+
 export const hotelSchema = z.object({
   name: z.string().min(1),
   pricePerNight: z.number().nonnegative(),
@@ -108,6 +117,7 @@ export const hotelSchema = z.object({
   referenceUrl: z.string().url().nullable(),
   isDemoData: z.boolean(),
   ...placeProvenanceFields,
+  rateBasis: hotelRateBasisSchema.optional(),
 });
 
 export const citySchema = z.object({

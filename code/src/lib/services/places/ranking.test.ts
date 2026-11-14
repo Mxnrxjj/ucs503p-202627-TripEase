@@ -82,26 +82,19 @@ describe("withoutDuplicates", () => {
 describe("pickHotel", () => {
   const luxury = ratedPlace("Luxury", 4.9, 8_000, { price: { amount: 20_000, currency: "INR", isEstimate: true } });
   const fair = ratedPlace("Fair", 4.5, 3_000, { price: { amount: 3_500, currency: "INR", isEstimate: true } });
-  const unpriced = ratedPlace("Unpriced", 4.2, 500);
 
   it("is null when there are no hotels", () => {
-    expect(pickHotel([], 5_000)).toBeNull();
+    expect(pickHotel([])).toBeNull();
   });
 
-  it("takes the best-rated hotel when there is no budget to respect", () => {
-    expect(pickHotel([fair, luxury], null)?.name).toBe("Luxury");
+  it("takes the best-rated hotel", () => {
+    expect(pickHotel([fair, luxury])?.name).toBe("Luxury");
   });
 
-  it("passes over a hotel whose price is known and over the budget", () => {
-    expect(pickHotel([luxury, fair, unpriced], 5_000)?.name).toBe("Fair");
-  });
-
-  it("allows a hotel with no known price: not knowing is not the same as expensive", () => {
-    expect(pickHotel([luxury, unpriced], 5_000)?.name).toBe("Unpriced");
-  });
-
-  it("uses the best-rated anyway when nothing fits, rather than giving no hotel", () => {
-    expect(pickHotel([luxury, ratedPlace("Also dear", 4.0, 100, { price: { amount: 30_000, currency: "INR", isEstimate: true } })], 1_000)?.name).toBe("Luxury");
+  it("ignores any price on the place: a hotel's price comes from its class, not from Google", () => {
+    // Google's price level is for restaurants and shops; the search already
+    // asked for the class of hotel the budget allows.
+    expect(pickHotel([luxury, fair])?.name).toBe("Luxury");
   });
 });
 

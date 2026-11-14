@@ -1,5 +1,6 @@
 import { addDaysIso } from "@/lib/utils";
-import { fromInr } from "@/lib/fx";
+import { fromInr, toInr } from "@/lib/fx";
+import { hotelRate, rateBasisOf, TIER_STARS, type HotelRate, type HotelTier } from "@/lib/hotels/rates";
 import { quoteFlights } from "@/lib/flights/quote";
 import { getPlacesProvider } from "@/lib/services/places";
 import { PlacesProviderError } from "@/lib/services/places/errors";
@@ -85,15 +86,15 @@ export function placeToActivity(place: Place, time: string, fallbackDurationMinu
 }
 
 /**
- * A hotel from a real place. Google gives a coarse price level, never an
- * amount, so the nightly price is an estimate derived from it. When even that is
- * missing a flat estimate is used, and either way the hotel says so
- * (`priceIsEstimate`). The name, location, rating and link are the real place's.
+ * A hotel from a real place. Google says nothing about what a hotel charges,
+ * so the nightly price is the typical price for its class in that city (see
+ * `@/lib/hotels/rates`), always marked as an estimate and saved with what it
+ * is based on. The name, location, rating and link are the real place's.
  */
-export function placeToHotel(place: Place, nights: number, currency: string): Hotel {
+export function placeToHotel(place: Place, nights: number, currency: string, rate: HotelRate): Hotel {
   return {
     name: place.name,
-    pricePerNight: place.price?.amount ?? fromInr(UNKNOWN_HOTEL_PRICE_INR, currency),
+    pricePerNight: fromInr(rate.perNightInr, currency),
     currency,
     nights,
     referenceUrl: place.source.sourceUrl,
@@ -103,12 +104,10 @@ export function placeToHotel(place: Place, nights: number, currency: string): Ho
     rating: place.rating,
     imageUrl: place.imageUrl,
     source: place.source,
-    priceIsEstimate: place.price?.isEstimate ?? true,
+    priceIsEstimate: true,
+    rateBasis: rateBasisOf(rate),
   };
 }
-
-/** Used only when the provider doesn't say what a hotel costs. A labelled estimate, not data. */
-const UNKNOWN_HOTEL_PRICE_INR = 3_500;
 
 interface CityPlaces {
   hotel: Place;
@@ -128,8 +127,8 @@ async function fetchCityPlaces(
   country: string,
   preferences: TripDraftInput["preferences"],
   currency: string,
-  /** What a night in a hotel may cost, from the trip's budget. Null when it can't be told. */
-  maxHotelPerNight: number | null,
+  /** The class of hotel the trip's budget allows; the search asks for that class. */
+  hotelTier: HotelTier,
 ): Promise<CityPlaces> {
   const base = { destination: cityName, country, currency } satisfies Partial<PlaceSearchParams>;
 
@@ -139,13 +138,13 @@ async function fetchCityPlaces(
   // (up to 20) and the best are chosen here, on rating, rather than taking
   // whatever came first.
   const [hotels, attractions, restaurants, nightlife] = await Promise.all([
-    searchPlaces(provider, { ...base, type: "hotel", limit: 20 }),
+    searchPlaces(provider, { ...base, type: "hotel", hotelClass: TIER_STARS[hotelTier], limit: 20 }),
     searchPlaces(provider, { ...base, type: "attraction", preferences, limit: 20 }),
     searchPlaces(provider, { ...base, type: "restaurant", limit: 20 }),
     searchPlaces(provider, { ...base, type: "nightlife", limit: 10 }),
   ]);
 
-  const hotel = pickHotel(hotels, maxHotelPerNight);
+  const hotel = pickHotel(hotels);
   if (!hotel) {
     throw new PlacesProviderError("no-results", `No hotels were found in ${cityName}.`);
   }
@@ -483,12 +482,14 @@ export async function generateItinerary(
     Math.round((new Date(input.endDate).getTime() - new Date(input.startDate).getTime()) / 86_400_000) + 1,
   );
 
-  // What one room may cost a night, so a hotel is chosen to fit the trip rather
-  // than being the best-rated one in the city whatever it charges. A bigger
-  // party books more rooms out of the same share of the budget.
+  // What one room may cost a night, in rupees, so each city's hotel class is
+  // chosen to fit the trip. A bigger party books more rooms out of the same
+  // share of the budget.
   const totalNights = Math.max(1, dayCount - 1);
-  const maxHotelPerNight =
-    input.budget > 0 ? (input.budget * HOTEL_SHARE_OF_BUDGET) / (totalNights * roomsFor(input.travelers)) : null;
+  const maxPerNightInr =
+    input.budget > 0
+      ? toInr(input.budget, input.currency) * HOTEL_SHARE_OF_BUDGET / (totalNights * roomsFor(input.travelers))
+      : null;
 
   const cities: City[] = [];
   const days: TripDay[] = [];
@@ -516,12 +517,14 @@ export async function generateItinerary(
     const reusableDays = Math.min(previousDays.length, count);
     // Only pay for a places lookup when there's something new to fill.
     const needsPlaces = !previous || reusableDays < count;
+    // The class of hotel this city's share of the budget allows, and its price.
+    const rate = hotelRate({ city: allocation.name, destination: input.destination, maxPerNightInr });
 
     const places = needsPlaces
-      ? await fetchCityPlaces(provider, allocation.name, country, input.preferences, input.currency, maxHotelPerNight)
+      ? await fetchCityPlaces(provider, allocation.name, country, input.preferences, input.currency, rate.tier)
       : null;
 
-    const hotel = previous ? { ...previous.hotel, nights } : placeToHotel(places!.hotel, nights, input.currency);
+    const hotel = previous ? { ...previous.hotel, nights } : placeToHotel(places!.hotel, nights, input.currency, rate);
 
     const city: City = {
       id: previous?.id ?? makeId("city"),

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { newTripInputSchema, tripDraftInputSchema } from "@/lib/validation/trip";
+import { COUNTRIES } from "@/lib/countries";
+import { hotelRate, rateBasisOf } from "@/lib/hotels/rates";
+import { citySchema, newTripInputSchema, tripDraftInputSchema } from "@/lib/validation/trip";
 
 const draft = {
   destination: "Thailand",
@@ -87,5 +89,80 @@ describe("trip length and real dates on a new trip", () => {
       expect(() => newTripInputSchema.safeParse(input)).not.toThrow();
       expect(newTripInputSchema.safeParse(input).success).toBe(false);
     }
+  });
+});
+
+describe("what a hotel's price is based on, on a saved city", () => {
+  const city = {
+    id: "city_1",
+    name: "Delhi",
+    country: "India",
+    order: 0,
+    startDate: "2027-03-08",
+    endDate: "2027-03-10",
+    dayCount: 3,
+    imageQuery: "Delhi India",
+    hotel: {
+      name: "The Imperial",
+      pricePerNight: 3780,
+      currency: "INR",
+      nights: 3,
+      referenceUrl: null,
+      isDemoData: false,
+      priceIsEstimate: true,
+      rateBasis: { tier: "mid", basis: "city", from: "Delhi", includesTax: true },
+    },
+  };
+
+  it("is kept, so a rebuild or a hotel swap still knows the hotel's class", () => {
+    // Zod drops keys it doesn't know, so a schema without it would lose it silently.
+    const parsed = citySchema.safeParse(city);
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.hotel.rateBasis).toEqual({ tier: "mid", basis: "city", from: "Delhi", includesTax: true });
+  });
+
+  it("can be missing, on a hotel saved before it existed", () => {
+    const { rateBasis: _dropped, ...older } = city.hotel;
+    void _dropped;
+    expect(citySchema.safeParse({ ...city, hotel: older }).success).toBe(true);
+  });
+
+  it("keeps the kind of place a modelled price was scaled for", () => {
+    const rateBasis = { tier: "mid", basis: "modelled", from: "Athens", includesTax: false, kind: "beach" };
+    const parsed = citySchema.safeParse({ ...city, hotel: { ...city.hotel, rateBasis } });
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.hotel.rateBasis).toEqual(rateBasis);
+  });
+
+  it("keeps the mark on a class that was worked out from the city's 4-star", () => {
+    const rateBasis = { tier: "upscale", basis: "city", from: "Phuket", includesTax: false, derived: true };
+    const parsed = citySchema.safeParse({ ...city, hotel: { ...city.hotel, rateBasis } });
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.hotel.rateBasis).toEqual(rateBasis);
+  });
+
+  it("accepts exactly what the app saves for every city it offers, in every class", () => {
+    for (const country of COUNTRIES) {
+      for (const place of country.cities) {
+        for (const tier of ["budget", "mid", "upscale"] as const) {
+          const rateBasis = rateBasisOf(hotelRate({ city: place.name, destination: country.name, maxPerNightInr: null, tier }));
+          const parsed = citySchema.safeParse({ ...city, hotel: { ...city.hotel, rateBasis } });
+          expect(parsed.success, `${place.name} ${tier}`).toBe(true);
+          // Nothing the app saved is dropped on the way through.
+          expect(parsed.data?.hotel.rateBasis, `${place.name} ${tier}`).toEqual(rateBasis);
+        }
+      }
+    }
+  });
+
+  it("must be a known class and basis", () => {
+    const withBasis = (rateBasis: Record<string, unknown>) =>
+      citySchema.safeParse({ ...city, hotel: { ...city.hotel, rateBasis } }).success;
+    expect(withBasis({ ...city.hotel.rateBasis, tier: "luxury" })).toBe(false);
+    expect(withBasis({ ...city.hotel.rateBasis, basis: "guess" })).toBe(false);
+    expect(withBasis({ ...city.hotel.rateBasis, kind: "island" })).toBe(false);
+    expect(withBasis({ ...city.hotel.rateBasis, derived: false })).toBe(false);
+    expect(withBasis({ ...city.hotel.rateBasis, from: "x".repeat(81) })).toBe(false);
+    expect(withBasis({ tier: "mid", basis: "city", from: "Delhi" })).toBe(false);
   });
 });

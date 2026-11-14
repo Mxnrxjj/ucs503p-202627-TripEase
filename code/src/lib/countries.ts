@@ -218,6 +218,14 @@ export function normalise(text: string): string {
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
+    // Letters that are not an accent on another letter, so NFD leaves them:
+    // without this "Tromsø" becomes "troms" and never matches "Tromso".
+    .replace(/ø/g, "o")
+    .replace(/æ/g, "ae")
+    .replace(/œ/g, "oe")
+    .replace(/ß/g, "ss")
+    .replace(/ł/g, "l")
+    .replace(/đ/g, "d")
     .replace(/[^a-z0-9' ]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();

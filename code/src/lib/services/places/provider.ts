@@ -11,6 +11,8 @@ export interface PlaceSearchParams {
   preferences?: TravelStyle[];
   /** Restaurants only — narrows to places suited to that meal. */
   mealType?: "breakfast" | "lunch" | "dinner";
+  /** Hotels only: look for this class of hotel (3, 4 or 5 stars). */
+  hotelClass?: 3 | 4 | 5;
   /** Currency for any price estimate attached to a result. Defaults to "INR". */
   currency?: string;
   limit?: number;
