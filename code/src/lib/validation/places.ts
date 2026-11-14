@@ -63,6 +63,7 @@ export const placeSchema = z.object({
   address: z.string().nullable(),
   city: z.string().nullable(),
   country: z.string().nullable(),
+  countryCode: z.string().nullable().optional(),
   imageUrl: z.string().nullable(),
   rating: ratingSchema.nullable(),
   price: priceInfoSchema.nullable(),

@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authErrorResponse, requireUser } from "@/lib/server/firebase-auth";
 import { generateItinerary } from "@/lib/services/itinerary-generator";
-import { friendlyPlacesMessage, PlacesProviderError, statusForPlacesError } from "@/lib/services/places/errors";
+import {
+  friendlyPlacesMessage,
+  PlaceNotFoundError,
+  placeNotFoundMessage,
+  PlacesProviderError,
+  statusForPlacesError,
+} from "@/lib/services/places/errors";
 import { validateCityAllocation } from "@/lib/services/planning";
 import { cityAllocationSchema } from "@/lib/validation/planning";
 import { citySchema, generatedItinerarySchema, tripDaySchema, tripDraftInputSchema } from "@/lib/validation/trip";
@@ -88,8 +94,12 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof PlacesProviderError) {
       console.error(`[places] trip rebuild failed (${error.code})`);
+      const message =
+        error instanceof PlaceNotFoundError
+          ? placeNotFoundMessage(error, draft.destination)
+          : friendlyPlacesMessage(error.code);
       return NextResponse.json(
-        { error: friendlyPlacesMessage(error.code), code: error.code },
+        { error: message, code: error.code },
         { status: statusForPlacesError(error.code) },
       );
     }

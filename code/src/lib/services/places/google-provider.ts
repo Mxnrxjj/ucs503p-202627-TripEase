@@ -128,12 +128,16 @@ function inferPrice(
 }
 
 /** Pull city/country out of Google's address components. Null when absent — never guessed. */
-function inferPlaceArea(raw: GoogleRawPlace): { city: string | null; country: string | null } {
+function inferPlaceArea(raw: GoogleRawPlace): { city: string | null; country: string | null; countryCode: string | null } {
   const components = raw.addressComponents ?? [];
-  const find = (type: string) => components.find((c) => c.types?.includes(type))?.longText ?? null;
+  const component = (type: string) => components.find((c) => c.types?.includes(type));
+  const find = (type: string) => component(type)?.longText ?? null;
+  // Google gives a country's short form as its two-letter ISO code.
+  const code = component("country")?.shortText?.trim().toUpperCase() ?? "";
   return {
     city: find("locality") ?? find("administrative_area_level_2") ?? find("administrative_area_level_1"),
     country: find("country"),
+    countryCode: /^[A-Z]{2}$/.test(code) ? code : null,
   };
 }
 
@@ -286,7 +290,7 @@ export class GooglePlacesProvider implements PlacesProvider {
     mealType: PlaceSearchParams["mealType"],
   ): Place {
     const { category, styleTags } = inferCategoryAndStyles(raw.types, type);
-    const { city, country } = inferPlaceArea(raw);
+    const { city, country, countryCode } = inferPlaceArea(raw);
     const providerPlaceId = raw.id ?? null;
 
     return {
@@ -300,6 +304,7 @@ export class GooglePlacesProvider implements PlacesProvider {
       address: raw.formattedAddress ?? null,
       city,
       country,
+      countryCode,
       imageUrl: photoUrl(raw.photos?.[0]?.name),
       rating: inferRating(raw),
       // A price level is a restaurant's or a shop's, not a nightly room rate, so

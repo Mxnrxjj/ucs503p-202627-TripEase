@@ -76,6 +76,11 @@ export interface Place {
   /** Parsed from the provider's address components where available, else null. */
   city: string | null;
   country: string | null;
+  /**
+   * ISO 3166-1 alpha-2 code of the country the place is in ("IN"), from the
+   * provider's address. Absent or null when the provider didn't say.
+   */
+  countryCode?: string | null;
   /** Relative URL into this app's image proxy (see `/api/places/photo`), never a raw provider URL with a key attached. */
   imageUrl: string | null;
   rating: Rating | null;

@@ -111,3 +111,43 @@ describe("TripPlannerWidget", () => {
     expect(readDraft()?.destination).toBe("Thailand");
   });
 });
+
+describe("TripPlannerWidget: a place typed to find the country", () => {
+  it("goes on to the wizard with the country", () => {
+    render(<TripPlannerWidget today={TODAY} />);
+    fireEvent.focus(country());
+    fireEvent.change(country(), { target: { value: "goa" } });
+    fireEvent.keyDown(country(), { key: "Enter" });
+    fireEvent.click(submit());
+    expect(readDraft()).toMatchObject({ destination: "India", focus: "Goa" });
+  });
+
+  it("is left out when the country was typed by name", () => {
+    render(<TripPlannerWidget today={TODAY} />);
+    fireEvent.change(country(), { target: { value: "Japan" } });
+    fireEvent.click(submit());
+    expect(readDraft()).not.toHaveProperty("focus");
+  });
+
+  it("is kept when the same country is found again by typing", () => {
+    render(<TripPlannerWidget today={TODAY} />);
+    fireEvent.focus(country());
+    fireEvent.change(country(), { target: { value: "goa" } });
+    fireEvent.keyDown(country(), { key: "Enter" });
+    fireEvent.change(country(), { target: { value: "indi" } });
+    fireEvent.keyDown(country(), { key: "Enter" });
+    fireEvent.click(submit());
+    expect(readDraft()).toMatchObject({ destination: "India", focus: "Goa" });
+  });
+
+  it("is dropped when a different country is chosen afterwards", () => {
+    render(<TripPlannerWidget today={TODAY} />);
+    fireEvent.focus(country());
+    fireEvent.change(country(), { target: { value: "goa" } });
+    fireEvent.keyDown(country(), { key: "Enter" });
+    fireEvent.change(country(), { target: { value: "Japan" } });
+    fireEvent.click(submit());
+    expect(readDraft()).toMatchObject({ destination: "Japan" });
+    expect(readDraft()).not.toHaveProperty("focus");
+  });
+});

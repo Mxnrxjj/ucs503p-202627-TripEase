@@ -101,3 +101,34 @@ describe("GooglePlacesProvider categories", () => {
     expect((await search("attraction", [])).category).toBe("sightseeing");
   });
 });
+
+describe("GooglePlacesProvider: which country a place is in", () => {
+  const provider = new GooglePlacesProvider("test-key");
+  const withCountry = (name: string, country: Record<string, unknown> | null) => ({
+    ...raw(name),
+    ...(country ? { addressComponents: [{ longText: "Panaji", types: ["locality"] }, { ...country, types: ["country", "political"] }] } : {}),
+  });
+
+  it("reads the country's two-letter code, in capitals", async () => {
+    stubGoogle([
+      withCountry("Fort", { longText: "India", shortText: "IN" }),
+      withCountry("Beach", { longText: "India", shortText: " in " }),
+    ]);
+    const places = await provider.searchPlaces({ destination: "Codeville", country: "India", type: "attraction" });
+    expect(places.map((p) => [p.country, p.countryCode])).toEqual([
+      ["India", "IN"],
+      ["India", "IN"],
+    ]);
+  });
+
+  it("leaves it empty rather than guessing when Google gives none, or something that isn't a code", async () => {
+    stubGoogle([
+      withCountry("No Address", null),
+      withCountry("No Short", { longText: "India" }),
+      withCountry("Long Short", { longText: "India", shortText: "IND" }),
+      withCountry("Odd Short", { longText: "India", shortText: "I1" }),
+    ]);
+    const places = await provider.searchPlaces({ destination: "Nocodeville", country: "India", type: "attraction" });
+    expect(places.map((p) => p.countryCode)).toEqual([null, null, null, null]);
+  });
+});

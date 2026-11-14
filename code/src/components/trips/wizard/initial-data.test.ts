@@ -7,6 +7,8 @@ describe("buildInitialWizardData", () => {
   it("opens on the wizard's own defaults when there is no draft", () => {
     expect(buildInitialWizardData(null, defaults)).toEqual({
       destination: "",
+      focusMode: "anywhere",
+      focus: "",
       startDate: "2026-12-01",
       endDate: "2026-12-08",
       budget: "150000",
@@ -31,6 +33,19 @@ describe("buildInitialWizardData", () => {
       endDate: "2027-04-08",
       preferences: ["beaches", "relaxation"],
     });
+  });
+
+  it("keeps the place a draft picked inside its country, tidied", () => {
+    expect(buildInitialWizardData({ destination: "India", focus: " Goa " }, defaults)).toMatchObject({ destination: "India", focusMode: "place", focus: "Goa" });
+  });
+
+  it("drops a place that has no country, or isn't a place name", () => {
+    expect(buildInitialWizardData({ destination: "Narnia", focus: "Goa" }, defaults)).toMatchObject({ focusMode: "anywhere", focus: "" });
+    expect(buildInitialWizardData({ focus: "Goa" }, defaults).focus).toBe("");
+    expect(buildInitialWizardData({ destination: "India", focus: "<b>Goa</b>" }, defaults).focus).toBe("");
+    expect(buildInitialWizardData({ destination: "India", focus: 7 as never }, defaults).focus).toBe("");
+    expect(buildInitialWizardData({ destination: "India", focus: "India" }, defaults)).toMatchObject({ focusMode: "anywhere", focus: "" });
+    expect(buildInitialWizardData({ destination: "India", focus: "  North   Goa " }, defaults).focus).toBe("North Goa");
   });
 
   it("keeps a supported country exactly as given", () => {

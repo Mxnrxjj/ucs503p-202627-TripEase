@@ -15,6 +15,7 @@ import {
   TravelersStep,
   budgetStepProblem,
   flightsIncluded,
+  focusStepProblem,
   type WizardData,
 } from "@/components/trips/wizard/steps";
 import { buildInitialWizardData, startingStep } from "@/components/trips/wizard/initial-data";
@@ -22,6 +23,7 @@ import { WizardShell } from "@/components/trips/wizard/wizard-shell";
 import { postAuthenticated } from "@/lib/api-client";
 import { clearDraft, clearDraftOrigin, readDraft, readDraftOrigin } from "@/lib/draft-storage";
 import { isSupportedCountry } from "@/lib/countries";
+import { destinationLabel } from "@/lib/trip-focus";
 import { toDateInputValue } from "@/lib/date";
 import { datesAreValid, todayInputValue } from "@/lib/trip-input-checks";
 import { saveGeneratedTrip } from "@/lib/services/trips";
@@ -43,7 +45,7 @@ function initialData(): WizardData {
 function stepIsValid(step: number, data: WizardData, today: string): boolean {
   switch (step) {
     case 0:
-      return isSupportedCountry(data.destination);
+      return isSupportedCountry(data.destination) && focusStepProblem(data) === null;
     case 1:
       return datesAreValid(data.startDate, data.endDate, today);
     case 2:
@@ -86,8 +88,11 @@ export default function NewTripPage() {
     setStage("planning");
     setPhase("generating");
 
+    // Only sent when the traveller chose to name a place.
+    const focus = data.focusMode === "place" ? data.focus.trim() : "";
     const draft: TripDraftInput = {
       destination: data.destination.trim(),
+      ...(focus ? { focus } : {}),
       startDate: data.startDate,
       endDate: data.endDate,
       budget: Number(data.budget),
@@ -131,7 +136,7 @@ export default function NewTripPage() {
   if (phase === "generating") {
     return (
       <GenerationLoader
-        destination={data.destination}
+        destination={destinationLabel(data.destination, data.focus)}
         stage={stage}
         plan={plan}
         done={fetchDone && itinerary !== null}

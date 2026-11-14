@@ -1,5 +1,6 @@
 import { resolveCountry } from "@/lib/countries";
 import { isOriginAirport } from "@/lib/flights/airports";
+import { cleanFocus } from "@/lib/trip-focus";
 import type { DraftOrigin, PartialDraft } from "@/lib/draft-storage";
 import { TRAVEL_STYLES, TRAVELER_TYPES } from "@/types/itinerary";
 import type { WizardData } from "./steps";
@@ -30,11 +31,19 @@ export function buildInitialWizardData(draft: PartialDraft | null, defaults: Wiz
       ? draft.travelers
       : 2;
 
+  // Only a supported country can fill the field. A draft from before the list
+  // existed ("Bali, Indonesia") becomes the country it names; anything that is
+  // not a country becomes empty rather than a value the picker can't show.
+  const destination = (typeof draft?.destination === "string" && resolveCountry(draft.destination)?.name) || "";
+
+  // A place only means something with its country, and only a well-formed one is kept.
+  // One that is only the country again ("India") is no place at all.
+  const focus = (destination && cleanFocus(draft?.focus, destination)) || "";
+
   return {
-    // Only a supported country can fill the field. A draft from before the list
-    // existed ("Bali, Indonesia") becomes the country it names; anything that is
-    // not a country becomes empty rather than a value the picker can't show.
-    destination: (typeof draft?.destination === "string" && resolveCountry(draft.destination)?.name) || "",
+    destination,
+    focusMode: focus ? "place" : "anywhere",
+    focus,
     startDate: draft?.startDate ?? defaults.startDate,
     endDate: draft?.endDate ?? defaults.endDate,
     budget: typeof draft?.budget === "number" && draft.budget > 0 ? String(draft.budget) : "150000",

@@ -29,6 +29,11 @@ export interface CityPlan {
 
 export interface CityPlanRequest {
   destination: string;
+  /**
+   * A place inside the destination to plan around ("Goa", "Kerala"), already
+   * tidied by `cleanFocus`. Absent or null: plan across the whole country.
+   */
+  focus?: string | null;
   startDate: string;
   endDate: string;
   dayCount: number;

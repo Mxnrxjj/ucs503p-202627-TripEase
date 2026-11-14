@@ -47,6 +47,8 @@ const tripConverter: FirestoreDataConverter<Trip> = {
       ownerId: data.ownerId,
       status: data.status ?? "ready",
       destination: data.destination,
+      // Absent on trips saved before a trip could have one.
+      focus: typeof data.focus === "string" ? data.focus : null,
       title: data.title,
       startDate: data.startDate,
       endDate: data.endDate,
@@ -90,6 +92,7 @@ export async function saveGeneratedTrip(
     ownerId: uid,
     status: "ready",
     destination: itinerary.destination,
+    focus: itinerary.focus ?? null,
     title: itinerary.title,
     startDate: itinerary.startDate,
     endDate: itinerary.endDate,
