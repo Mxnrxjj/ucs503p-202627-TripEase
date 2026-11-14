@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authErrorResponse, requireUser } from "@/lib/server/firebase-auth";
-import { createRateLimiter } from "@/lib/server/rate-limit";
+import { createRateLimiter, RATE_LIMITS, rateLimitedResponse } from "@/lib/server/rate-limit";
 import { AIProviderError, getTripAgentProvider } from "@/lib/services/ai";
 import { getPlacesProvider } from "@/lib/services/places";
 import { friendlyPlacesMessage, PlacesProviderError, statusForPlacesError } from "@/lib/services/places/errors";
@@ -37,8 +37,7 @@ export const maxDuration = 60;
  */
 const MAX_BODY_CHARS = 400_000;
 
-/** 30 requests per person per 10 minutes: a lively editing session, not a script. */
-const limiter = createRateLimiter({ limit: 30, windowMs: 10 * 60 * 1000 });
+const limiter = createRateLimiter(RATE_LIMITS.tripAgent);
 
 const UNAVAILABLE = "Travis can't change trips right now. You can still edit your trip yourself.";
 
@@ -52,13 +51,9 @@ export async function POST(request: NextRequest) {
 
   const allowed = limiter.check(uid);
   if (!allowed.ok) {
-    return NextResponse.json(
-      {
-        error: "You're sending requests quickly. Give Travis a moment and try again.",
-        code: "rate-limited",
-        retryAfterSeconds: allowed.retryAfterSeconds,
-      },
-      { status: 429, headers: { "Retry-After": String(allowed.retryAfterSeconds) } },
+    return rateLimitedResponse(
+      allowed.retryAfterSeconds,
+      "You're sending requests quickly. Give Travis a moment and try again.",
     );
   }
 

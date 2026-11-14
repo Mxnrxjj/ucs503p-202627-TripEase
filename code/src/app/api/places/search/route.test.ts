@@ -2,6 +2,7 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthError, requireUser } from "@/lib/server/firebase-auth";
+import { RATE_LIMITS, waitInWords } from "@/lib/server/rate-limit";
 import { getPlacesProvider } from "@/lib/services/places";
 import { PlacesProviderError } from "@/lib/services/places/errors";
 import { ratedPlace, RatedPlacesProvider } from "@/test-support/places/rated-provider";
@@ -19,10 +20,14 @@ vi.mock("@/lib/services/places", async (importOriginal) => {
 const mockedUser = vi.mocked(requireUser);
 const mockedProvider = vi.mocked(getPlacesProvider);
 
+// A new person for every test: the route's rate limiter remembers people for the whole file.
+let userCounter = 0;
+
 beforeEach(() => {
   vi.restoreAllMocks();
   vi.spyOn(console, "error").mockImplementation(() => {});
-  mockedUser.mockResolvedValue({ uid: "u1", email: null });
+  userCounter += 1;
+  mockedUser.mockResolvedValue({ uid: `user-${userCounter}`, email: null });
 });
 
 const post = (body: unknown) =>
@@ -91,5 +96,54 @@ describe("the place search route", () => {
   it("rejects a malformed search", async () => {
     expect((await post("not json")).status).toBe(400);
     expect((await post({ query: "x", destination: "Bangkok" })).status).toBe(400);
+  });
+});
+
+const temples = () => new RatedPlacesProvider({ attraction: [ratedPlace("Wat Pho temple", 4.7, 50_000)] });
+
+describe("rate limiting", () => {
+  const { limit } = RATE_LIMITS.placeSearch;
+  /** Uses up this test's person's allowance with real requests that work. */
+  async function useAllowance() {
+    for (let i = 0; i < limit; i++) expect((await post(search)).status).toBe(200);
+  }
+
+  it(`searches ${limit} times for one person, then refuses and says when to try again`, async () => {
+    mockedProvider.mockReturnValue(temples());
+    await useAllowance();
+
+    const refused = await post(search);
+    const json = await refused.json();
+    expect(refused.status).toBe(429);
+    expect(json.code).toBe("rate-limited");
+    expect(json.retryAfterSeconds).toBeGreaterThan(0);
+    expect(refused.headers.get("Retry-After")).toBe(String(json.retryAfterSeconds));
+    expect(json.error).toBe(`You've run a lot of searches in a short time. Try again ${waitInWords(json.retryAfterSeconds)}, or type the name in yourself.`);
+  });
+
+  it("spends nothing on a request it refuses", async () => {
+    const provider = temples();
+    mockedProvider.mockReturnValue(provider);
+    await useAllowance();
+    const before = provider.searches.length;
+
+    expect((await post(search)).status).toBe(429);
+    expect(provider.searches.length).toBe(before);
+  });
+
+  it("refuses before reading the request, so even a broken one counts as refused", async () => {
+    mockedProvider.mockReturnValue(temples());
+    await useAllowance();
+    const broken = await POST(new NextRequest("http://localhost/api/places/search", { method: "POST", body: "not json" }));
+    expect(broken.status).toBe(429);
+  });
+
+  it("limits one person without affecting anyone else", async () => {
+    mockedProvider.mockReturnValue(temples());
+    await useAllowance();
+    expect((await post(search)).status).toBe(429);
+
+    mockedUser.mockResolvedValue({ uid: `someone-else-${userCounter}`, email: null });
+    expect((await post(search)).status).toBe(200);
   });
 });

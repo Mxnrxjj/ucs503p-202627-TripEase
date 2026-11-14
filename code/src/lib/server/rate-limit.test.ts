@@ -1,5 +1,8 @@
+// @vitest-environment node
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createRateLimiter } from "@/lib/server/rate-limit";
+import { createRateLimiter, RATE_LIMITS, rateLimitedResponse, waitInWords } from "@/lib/server/rate-limit";
 
 function clock(start = 1_000_000) {
   let now = start;
@@ -85,5 +88,57 @@ describe("createRateLimiter", () => {
     // Crossing the sweep threshold again must not break anyone's limits.
     for (let i = 0; i < 600; i++) expect(limiter.check(`new-${i}`).ok).toBe(true);
     expect(limiter.check("new-0").ok).toBe(false);
+  });
+});
+
+describe("waitInWords", () => {
+  it.each([
+    [1, "in 1 second"],
+    [2, "in 2 seconds"],
+    [59, "in 59 seconds"],
+    [60, "in a minute"],
+    // Rounded up: 61 seconds is not "a minute", or the person would try too early.
+    [61, "in 2 minutes"],
+    [120, "in 2 minutes"],
+    [121, "in 3 minutes"],
+    [600, "in 10 minutes"],
+  ])("%i seconds is %s", (seconds, words) => {
+    expect(waitInWords(seconds)).toBe(words);
+  });
+});
+
+describe("rateLimitedResponse", () => {
+  it("is a 429 that says how long to wait, in the body and in Retry-After", async () => {
+    const response = rateLimitedResponse(45, "Slow down.");
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("45");
+    expect(await response.json()).toEqual({ error: "Slow down.", code: "rate-limited", retryAfterSeconds: 45 });
+  });
+});
+
+describe("RATE_LIMITS", () => {
+  it("gives every route a whole number of requests over a real window", () => {
+    for (const [route, { limit, windowMs }] of Object.entries(RATE_LIMITS)) {
+      expect(Number.isInteger(limit) && limit > 0, route).toBe(true);
+      expect(windowMs, route).toBeGreaterThanOrEqual(60_000);
+    }
+  });
+
+  it("are the limits the README tells people about", () => {
+    // Typed by RATE_LIMITS' own keys, so a new limit can't be added without its route here.
+    const routes: Record<keyof typeof RATE_LIMITS, string> = {
+      travisChat: "/api/travis/chat",
+      tripAgent: "/api/trips/agent",
+      tripPlan: "/api/trips/plan",
+      tripGenerate: "/api/trips/generate",
+      tripRebuild: "/api/trips/rebuild",
+      placeSearch: "/api/places/search",
+    };
+    const readme = readFileSync(resolve(__dirname, "../../../README.md"), "utf8");
+    for (const [key, route] of Object.entries(routes)) {
+      const { limit, windowMs } = RATE_LIMITS[key as keyof typeof RATE_LIMITS];
+      const row = readme.split("\n").find((line) => line.startsWith(`| \`${route}\` |`));
+      expect(row, route).toMatch(new RegExp(`\\b${limit} (messages|requests) per ${windowMs / 60_000} minutes per user → 429`));
+    }
   });
 });

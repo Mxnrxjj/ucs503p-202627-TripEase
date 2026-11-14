@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authErrorResponse, requireUser } from "@/lib/server/firebase-auth";
+import { createRateLimiter, RATE_LIMITS, rateLimitedResponse, waitInWords } from "@/lib/server/rate-limit";
 import { planCities } from "@/lib/services/planning";
 import { newTripInputSchema } from "@/lib/validation/trip";
 import { dayCountInclusive, parseDateInput } from "@/lib/date";
 import { cleanFocus } from "@/lib/trip-focus";
+
+const limiter = createRateLimiter(RATE_LIMITS.tripPlan);
 
 /**
  * POST /api/trips/plan
@@ -13,13 +16,22 @@ import { cleanFocus } from "@/lib/trip-focus";
  * traveller a real "planning your cities…" stage and then the cities the
  * planner actually chose, rather than a spinner over one long request.
  *
- * Authenticated: this spends LLM quota.
+ * Authenticated and rate limited: this spends LLM quota.
  */
 export async function POST(request: NextRequest) {
+  let uid: string;
   try {
-    await requireUser(request);
+    ({ uid } = await requireUser(request));
   } catch (error) {
     return authErrorResponse(error);
+  }
+
+  const allowed = limiter.check(uid);
+  if (!allowed.ok) {
+    return rateLimitedResponse(
+      allowed.retryAfterSeconds,
+      `You've asked for several new trips in a short time. Try again ${waitInWords(allowed.retryAfterSeconds)}.`,
+    );
   }
 
   let body: unknown;

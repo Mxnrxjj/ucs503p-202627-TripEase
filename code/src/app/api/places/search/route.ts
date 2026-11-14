@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authErrorResponse, requireUser } from "@/lib/server/firebase-auth";
+import { createRateLimiter, RATE_LIMITS, rateLimitedResponse, waitInWords } from "@/lib/server/rate-limit";
 import { getPlacesProvider } from "@/lib/services/places";
 import { friendlyPlacesMessage, PlacesProviderError, statusForPlacesError } from "@/lib/services/places/errors";
 import { topRated } from "@/lib/services/places/ranking";
 import { placeSearchRequestSchema, placeSchema } from "@/lib/validation/places";
+
+const limiter = createRateLimiter(RATE_LIMITS.placeSearch);
 
 /**
  * POST /api/places/search
@@ -16,13 +19,23 @@ import { placeSearchRequestSchema, placeSchema } from "@/lib/validation/places";
  * Results are real places, best rated first. If the places service can't be
  * reached, or isn't set up, the answer is an error that says so: there is no
  * stand-in list to fall back to.
+ *
+ * Authenticated and rate limited: every call here can hit a paid Places search.
  */
 export async function POST(request: NextRequest) {
-  // Authenticated: every call here can hit a paid Places search.
+  let uid: string;
   try {
-    await requireUser(request);
+    ({ uid } = await requireUser(request));
   } catch (error) {
     return authErrorResponse(error);
+  }
+
+  const allowed = limiter.check(uid);
+  if (!allowed.ok) {
+    return rateLimitedResponse(
+      allowed.retryAfterSeconds,
+      `You've run a lot of searches in a short time. Try again ${waitInWords(allowed.retryAfterSeconds)}, or type the name in yourself.`,
+    );
   }
 
   let body: unknown;
