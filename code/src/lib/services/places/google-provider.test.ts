@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { budgetCategoryOf } from "@/lib/services/budget-engine";
 import { GooglePlacesProvider } from "@/lib/services/places/google-provider";
 
 // Every test uses its own destination, since searches are cached by query.
@@ -8,10 +9,11 @@ function stubGoogle(places: unknown[]) {
   return () => JSON.parse((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).textQuery;
 }
 
-const raw = (name: string, priceLevel?: string) => ({
+const raw = (name: string, priceLevel?: string, types?: string[]) => ({
   id: name.toLowerCase().replace(/\s+/g, "-"),
   displayName: { text: name },
   ...(priceLevel ? { priceLevel } : {}),
+  ...(types ? { types } : {}),
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -61,5 +63,41 @@ describe("GooglePlacesProvider hotel search", () => {
     stubGoogle([raw("Pricey Restaurant", "PRICE_LEVEL_EXPENSIVE")]);
     const [restaurant] = await provider.searchPlaces({ destination: "Dineville", type: "restaurant" });
     expect(restaurant.price).toEqual({ amount: 3_500, currency: "INR", isEstimate: true });
+  });
+});
+
+describe("GooglePlacesProvider categories", () => {
+  const provider = new GooglePlacesProvider("test-key");
+  let n = 0;
+  const search = async (type: "restaurant" | "attraction" | "nightlife", types: string[]) => {
+    stubGoogle([raw("Some Place", undefined, types)]);
+    const [place] = await provider.searchPlaces({ destination: `Categoryville${++n}`, type });
+    return place;
+  };
+
+  it.each([
+    ["a bar", ["restaurant", "bar", "food"]],
+    ["a night club", ["night_club", "restaurant"]],
+    ["a store", ["store", "restaurant", "food"]],
+    ["a market", ["market", "restaurant"]],
+    ["a tourist attraction", ["tourist_attraction", "restaurant"]],
+    ["a spa", ["spa", "restaurant"]],
+    ["nothing else", ["restaurant"]],
+    ["no types at all", []],
+  ])("keeps a restaurant that Google also calls %s as food, so it is paid for as a meal", async (_label, types) => {
+    const place = await search("restaurant", types);
+    expect(place.category).toBe("food");
+    expect(place.styleTags).toEqual(["food"]);
+    expect(budgetCategoryOf(place)).toBe("food");
+  });
+
+  it("leaves the other kinds of search as they were", async () => {
+    expect((await search("attraction", ["shopping_mall"])).category).toBe("shopping");
+    expect((await search("attraction", ["museum"])).category).toBe("culture");
+    expect((await search("attraction", ["restaurant", "bar"])).category).toBe("nightlife");
+    expect((await search("nightlife", ["bar"])).category).toBe("nightlife");
+    expect((await search("nightlife", ["restaurant"])).category).toBe("food");
+    expect((await search("nightlife", [])).category).toBe("nightlife");
+    expect((await search("attraction", [])).category).toBe("sightseeing");
   });
 });

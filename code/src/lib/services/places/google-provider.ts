@@ -96,6 +96,10 @@ function inferCategoryAndStyles(
   types: string[] | undefined,
   searchType: PlaceType,
 ): { category: ActivityCategory; styleTags: TravelStyle[] } {
+  // A place found by searching for restaurants is a meal, whatever else Google also
+  // calls it: many restaurants are typed "bar" or "store" too, and would otherwise be
+  // counted as nightlife or shopping instead of food.
+  if (searchType === "restaurant") return { category: "food", styleTags: ["food"] };
   for (const rule of CATEGORY_RULES) {
     if (types?.some((t) => rule.types.includes(t))) {
       return { category: rule.category, styleTags: rule.styles };
