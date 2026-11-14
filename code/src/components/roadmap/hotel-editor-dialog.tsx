@@ -9,13 +9,16 @@ export function HotelEditorDialog({
   onOpenChange,
   hotel,
   maxNights,
+  days,
   onSave,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   hotel: Hotel;
-  /** The most nights this city can have: its days. Without it nights are only kept above zero. */
+  /** The most nights this city can have: its days, or one fewer where the trip ends. Without it nights are only kept above zero. */
   maxNights?: number;
+  /** How many days the city has, to say why the limit is what it is. */
+  days?: number;
   onSave: (patch: Partial<Hotel>) => void;
 }) {
   const [name, setName] = useState(hotel.name);
@@ -75,7 +78,12 @@ export function HotelEditorDialog({
             onClick={() => {
               const nightsValue = Math.max(1, Math.floor(Number(nights)) || 1);
               if (maxNights !== undefined && nightsValue > maxNights) {
-                setError(`This city has ${maxNights} ${maxNights === 1 ? "day" : "days"}, so it can have at most ${maxNights} ${maxNights === 1 ? "night" : "nights"}.`);
+                const nightWord = maxNights === 1 ? "night" : "nights";
+                if (days !== undefined && days > maxNights) {
+                  setError(`This city has ${days} ${days === 1 ? "day" : "days"} and the trip ends on its last one, so it can have at most ${maxNights} ${nightWord}.`);
+                } else {
+                  setError(`This city has ${maxNights} ${maxNights === 1 ? "day" : "days"}, so it can have at most ${maxNights} ${nightWord}.`);
+                }
                 return;
               }
               const nameChanged = name.trim() !== hotel.name;
