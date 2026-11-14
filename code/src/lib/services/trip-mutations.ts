@@ -1,4 +1,5 @@
 import { computeBudgetBreakdown } from "@/lib/services/budget-engine";
+import { retimeInOrder, sortByTime } from "@/lib/services/feasibility/schedule";
 import type { City, TripDay } from "@/types/itinerary";
 import type { Trip } from "@/types/trip";
 
@@ -27,8 +28,9 @@ export function withUpdatedDay(trip: Trip, dayId: string, updater: (day: TripDay
   return { days, budget: recomputeBudget(trip, trip.cities, days) };
 }
 
+/** The new activity goes where its time puts it, after any that share that time. */
 export function addActivity(trip: Trip, dayId: string, activity: TripDay["activities"][number]) {
-  return withUpdatedDay(trip, dayId, (day) => ({ ...day, activities: [...day.activities, activity] }));
+  return withUpdatedDay(trip, dayId, (day) => ({ ...day, activities: sortByTime([...day.activities, activity]) }));
 }
 
 export function updateActivity(
@@ -37,10 +39,13 @@ export function updateActivity(
   activityId: string,
   patch: Partial<TripDay["activities"][number]>,
 ) {
-  return withUpdatedDay(trip, dayId, (day) => ({
-    ...day,
-    activities: day.activities.map((a) => (a.id === activityId ? { ...a, ...patch } : a)),
-  }));
+  return withUpdatedDay(trip, dayId, (day) => {
+    const activities = day.activities.map((a) => (a.id === activityId ? { ...a, ...patch } : a));
+    // Only a changed time can put the day out of order, so only then is it re-sorted.
+    const before = day.activities.find((a) => a.id === activityId);
+    const timeChanged = before !== undefined && patch.time !== undefined && patch.time !== before.time;
+    return { ...day, activities: timeChanged ? sortByTime(activities) : activities };
+  });
 }
 
 export function deleteActivity(trip: Trip, dayId: string, activityId: string) {
@@ -50,11 +55,13 @@ export function deleteActivity(trip: Trip, dayId: string, activityId: string) {
   }));
 }
 
+/**
+ * Dragging stops into a new order moves the places, not the clock: the day's
+ * start times are dealt out again in the new order (and nudged later where
+ * the traveller couldn't get there in time), so the times still read in order.
+ */
 export function reorderActivities(trip: Trip, dayId: string, orderedIds: string[]) {
-  return withUpdatedDay(trip, dayId, (day) => {
-    const byId = new Map(day.activities.map((a) => [a.id, a]));
-    return { ...day, activities: orderedIds.map((id) => byId.get(id)!).filter(Boolean) };
-  });
+  return withUpdatedDay(trip, dayId, (day) => ({ ...day, activities: retimeInOrder(day.activities, orderedIds) }));
 }
 
 export function updateHotel(trip: Trip, cityId: string, patch: Partial<City["hotel"]>) {

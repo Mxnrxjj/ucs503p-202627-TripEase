@@ -17,6 +17,8 @@ import {
   nearestNeighbourOrder,
   parseTimeToMinutes,
   projectDayMinutes,
+  settleTimes,
+  sortByTime,
 } from "@/lib/services/feasibility";
 import type { Activity, City, Hotel, TripDay } from "@/types/itinerary";
 import type { LatLng, Place } from "@/types/place";
@@ -436,8 +438,10 @@ function buildDaysForCity(
       date,
       cityId: city.id,
       // Stops are chosen by priority, not by clock, so the day is put back
-      // into chronological order before it's saved.
-      activities: [...activities].sort((a, b) => a.time.localeCompare(b.time)),
+      // into chronological order before it's saved, and any stop that would
+      // start before the traveller could reach it from the one before is
+      // moved later.
+      activities: settleTimes(sortByTime(activities), travelProvider),
     });
   }
 

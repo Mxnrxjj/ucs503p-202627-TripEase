@@ -24,6 +24,7 @@ export {
   AVAILABLE_MINUTES,
 } from "./engine";
 export { nearestNeighbourOrder, clusterByDay } from "./ordering";
+export { sortByTime, settleTimes, retimeInOrder } from "./schedule";
 export type {
   TravelSegment,
   TravelMode,

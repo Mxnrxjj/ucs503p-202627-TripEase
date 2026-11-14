@@ -2,6 +2,8 @@ import { maxNightsOf } from "@/lib/hotel-nights";
 import { describe, expect, it } from "vitest";
 import { quoteFlights } from "@/lib/flights/quote";
 import { fromInr } from "@/lib/fx";
+import { parseTimeToMinutes } from "@/lib/services/feasibility";
+import { getTravelTimeProvider } from "@/lib/services/feasibility/travel-time";
 import { generateItinerary } from "@/lib/services/itinerary-generator";
 import { PlacesProviderError } from "@/lib/services/places/errors";
 import type { CityPlan } from "@/types/planning";
@@ -368,5 +370,72 @@ describe("flights in the budget", () => {
     const itinerary = await build({ ...thailand, includeFlights: undefined, origin: undefined });
     expect(itinerary.flights?.originAssumed).toBe(true);
     expect(itinerary.budget.categories.flights).toBeGreaterThan(0);
+  });
+});
+
+describe("the clock times of a generated day", () => {
+  // Places spread over a few kilometres, so getting between them takes real time.
+  const spot = (i: number) => ({ lat: 13.7 + (i % 5) * 0.05, lng: 100.5 + Math.floor(i / 5) * 0.06 });
+  const spread = () =>
+    results({
+      attraction: Array.from({ length: 14 }, (_, i) =>
+        ratedPlace(`Sight ${i}`, 4.8 - i / 40, 5_000, { location: spot(i * 7 + 3), durationMinutes: [90, 180, 240, 120][i % 4] }),
+      ),
+      hotel: [ratedPlace("Spread Hotel", 4.6, 4_000, { type: "hotel", location: spot(11) })],
+      restaurant: Array.from({ length: 12 }, (_, i) =>
+        ratedPlace(`Spread Restaurant ${i}`, 4.5, 900, { type: "restaurant", category: "food", location: spot(i * 3 + 1) }),
+      ),
+      nightlife: [ratedPlace("Spread Bar", 4.4, 600, { type: "nightlife", category: "nightlife", location: spot(17) })],
+    });
+  const twoCities = plan([
+    { name: "Testville", days: 3 },
+    { name: "Otherton", days: 3 },
+  ]);
+
+  it("lists each day in clock order, with a valid time on every stop", async () => {
+    const itinerary = await generateItinerary(draft, twoCities, undefined, new RatedPlacesProvider(spread()));
+    for (const day of itinerary.days) {
+      const minutes = day.activities.map((a) => parseTimeToMinutes(a.time));
+      expect(minutes.every((m) => m !== null)).toBe(true);
+      expect(minutes).toEqual([...minutes].sort((a, b) => a! - b!));
+    }
+  });
+
+  it("never starts a stop before the traveller can have got there from the one before", async () => {
+    const itinerary = await generateItinerary(draft, twoCities, undefined, new RatedPlacesProvider(spread()));
+    const travel = getTravelTimeProvider();
+    let hops = 0;
+    for (const day of itinerary.days) {
+      const stops = day.activities.filter((a) => a.category !== "transport");
+      for (let i = 1; i < stops.length; i++) {
+        const before = stops[i - 1];
+        const gap = parseTimeToMinutes(stops[i].time)! - (parseTimeToMinutes(before.time)! + before.durationMinutes);
+        expect(gap, `${before.name} -> ${stops[i].name} on day ${day.dayNumber}`).toBeGreaterThanOrEqual(
+          travel.estimate(before.location ?? null, stops[i].location ?? null, { sameCity: true }).minutes,
+        );
+        hops += 1;
+      }
+    }
+    expect(hops).toBeGreaterThan(5);
+  });
+
+  it("keeps breakfast at nine: a stop chosen late is not pushed past the ones chosen first", async () => {
+    const itinerary = await generateItinerary(draft, twoCities, undefined, new RatedPlacesProvider(spread()));
+    for (const day of [itinerary.days[1], itinerary.days[2]]) {
+      expect(day.activities[0].category).toBe("food");
+      expect(day.activities[0].time).toBe("09:00");
+    }
+  });
+
+  it("keeps the transfer between cities at 09:00 and every stop after it", async () => {
+    const itinerary = await generateItinerary(draft, twoCities, undefined, new RatedPlacesProvider(spread()));
+    const transferDay = itinerary.days[3];
+    const transfer = transferDay.activities.find((a) => a.category === "transport")!;
+    expect(transfer.time).toBe("09:00");
+    expect(transferDay.activities[0]).toBe(transfer);
+    const end = parseTimeToMinutes(transfer.time)! + transfer.durationMinutes;
+    for (const stop of transferDay.activities.filter((a) => a.category !== "transport")) {
+      expect(parseTimeToMinutes(stop.time)!).toBeGreaterThanOrEqual(end);
+    }
   });
 });
