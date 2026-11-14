@@ -1,7 +1,11 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { COUNTRIES, normalise } from "@/lib/countries";
 import {
+  FOCUS_CHARACTERS,
   FOCUS_MAX_LENGTH,
+  FOCUS_MIN_LENGTH,
   NOT_A_PLACE_ALIASES,
   cleanFocus,
   destinationLabel,
@@ -219,5 +223,23 @@ describe("focusAfterPick", () => {
     expect(focusAfterPick("Goa", "India", "Thailand")).toBe("");
     expect(focusAfterPick("Goa", "India", "Thailand", "thai")).toBe("");
     expect(focusAfterPick("Goa", "", "India")).toBe("");
+  });
+});
+
+describe("the Firestore rule for a trip's focus", () => {
+  // firestore.rules repeats the shape for writes made around the app. If the
+  // two drift apart, a place the app allows could not be saved, or the rule
+  // would let through one it doesn't.
+  const rules = readFileSync(resolve(__dirname, "../../firestore.rules"), "utf8");
+
+  it("allows the same lengths", () => {
+    expect(rules).toContain(`focus.size() >= ${FOCUS_MIN_LENGTH}`);
+    expect(rules).toContain(`focus.size() <= ${FOCUS_MAX_LENGTH}`);
+  });
+
+  it("allows the same characters", () => {
+    // The app's pattern without its anchors, written the way a rules string escapes a backslash.
+    const characters = FOCUS_CHARACTERS.source.replace(/^\^/, "").replace(/\$$/, "").replaceAll("\\", "\\\\");
+    expect(rules).toContain(`focus.matches("${characters}")`);
   });
 });
