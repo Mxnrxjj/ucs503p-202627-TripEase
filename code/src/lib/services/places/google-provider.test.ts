@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { fromInr } from "@/lib/fx";
 import { budgetCategoryOf } from "@/lib/services/budget-engine";
+import { spendPricesFor } from "@/lib/spending/prices";
 import { GooglePlacesProvider } from "@/lib/services/places/google-provider";
 
 // Every test uses its own destination, since searches are cached by query.
@@ -61,8 +63,74 @@ describe("GooglePlacesProvider hotel search", () => {
 
   it("still prices a restaurant from its price level", async () => {
     stubGoogle([raw("Pricey Restaurant", "PRICE_LEVEL_EXPENSIVE")]);
-    const [restaurant] = await provider.searchPlaces({ destination: "Dineville", type: "restaurant" });
-    expect(restaurant.price).toEqual({ amount: 3_500, currency: "INR", isEstimate: true });
+    const [restaurant] = await provider.searchPlaces({ destination: "Dineville", country: "India", type: "restaurant" });
+    expect(restaurant.price).toEqual({ amount: spendPricesFor("IN").perPersonInr.upscale, currency: "INR", isEstimate: true });
+  });
+});
+
+describe("GooglePlacesProvider prices", () => {
+  const provider = new GooglePlacesProvider("test-key");
+  let n = 0;
+  const inCountry = (code: string) => ({ addressComponents: [{ longText: "X", shortText: code, types: ["country"] }] });
+  const priceOf = async (
+    place: Record<string, unknown>,
+    params: { type: "restaurant" | "attraction" | "nightlife"; country?: string; currency?: string },
+  ) => {
+    stubGoogle([place]);
+    const [found] = await provider.searchPlaces({ destination: `Priceville${++n}`, ...params });
+    return found.price;
+  };
+  const india = spendPricesFor("IN").perPersonInr;
+  const swiss = spendPricesFor("CH").perPersonInr;
+
+  it("prices each Google level with the country's own figures", async () => {
+    const levels = [
+      ["PRICE_LEVEL_INEXPENSIVE", india.budget],
+      ["PRICE_LEVEL_MODERATE", india.mid],
+      ["PRICE_LEVEL_EXPENSIVE", india.upscale],
+      ["PRICE_LEVEL_VERY_EXPENSIVE", india.luxury],
+      ["PRICE_LEVEL_FREE", 0],
+    ] as const;
+    for (const [level, amount] of levels) {
+      expect(await priceOf(raw("Cafe", level), { type: "restaurant", country: "India" })).toEqual({
+        amount,
+        currency: "INR",
+        isEstimate: true,
+      });
+    }
+  });
+
+  it("gives the same level a different price in a dearer country", async () => {
+    const jaipur = await priceOf(raw("Cafe", "PRICE_LEVEL_MODERATE"), { type: "restaurant", country: "India" });
+    const zurich = await priceOf(raw("Cafe", "PRICE_LEVEL_MODERATE"), { type: "restaurant", country: "Switzerland" });
+    expect(jaipur?.amount).toBe(india.mid);
+    expect(zurich?.amount).toBe(swiss.mid);
+    expect(swiss.mid).toBeGreaterThan(india.mid * 5);
+  });
+
+  it("uses the place's own country before the one searched in", async () => {
+    const price = await priceOf({ ...raw("Cafe", "PRICE_LEVEL_MODERATE"), ...inCountry("CH") }, { type: "restaurant", country: "India" });
+    expect(price?.amount).toBe(swiss.mid);
+  });
+
+  it("converts to the trip's currency", async () => {
+    const price = await priceOf(raw("Cafe", "PRICE_LEVEL_MODERATE"), { type: "restaurant", country: "India", currency: "USD" });
+    expect(price).toEqual({ amount: fromInr(india.mid, "USD"), currency: "USD", isEstimate: true });
+  });
+
+  it("prices a restaurant or a bar with no level as a mid-range one, never as free", async () => {
+    expect((await priceOf(raw("Unknown Cafe"), { type: "restaurant", country: "India" }))?.amount).toBe(india.mid);
+    expect((await priceOf(raw("Unknown Bar", undefined, ["bar"]), { type: "nightlife", country: "India" }))?.amount).toBe(india.mid);
+    expect((await priceOf(raw("Odd Level", "PRICE_LEVEL_UNSPECIFIED"), { type: "restaurant", country: "India" }))?.amount).toBe(india.mid);
+  });
+
+  it("gives a sight with no level no price, as before", async () => {
+    expect(await priceOf(raw("Old Fort", undefined, ["tourist_attraction"]), { type: "attraction", country: "India" })).toBeNull();
+  });
+
+  it("prices a sight that does have a level", async () => {
+    const price = await priceOf(raw("Theme Park", "PRICE_LEVEL_EXPENSIVE", ["amusement_park"]), { type: "attraction", country: "India" });
+    expect(price?.amount).toBe(india.upscale);
   });
 });
 

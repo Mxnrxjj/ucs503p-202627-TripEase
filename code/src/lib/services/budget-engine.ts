@@ -12,9 +12,14 @@ import { fromInr } from "@/lib/fx";
 
 // These three numbers are written in rupees and converted to the trip's currency
 // when they are used, so a USD, EUR or GBP trip gets sensible values too.
-const DAILY_TRANSPORT_INR = 500;
-const MIN_BUFFER_INR = 3_000;
+export const DAILY_TRANSPORT_INR = 500;
+export const MIN_BUFFER_INR = 3_000;
 const PRICEY_ACTIVITY_INR = 1_500;
+
+/** Miscellaneous spending, as a share of everything else the trip costs. */
+export const MISC_SHARE = 0.04;
+/** The emergency buffer, as a share of the traveller's budget (at least `MIN_BUFFER_INR`). */
+export const BUFFER_SHARE = 0.05;
 
 // A shared tour is something you buy for a sight or an activity. It makes no
 // sense for a meal, a transfer between cities, a night out or a shopping stop.
@@ -121,8 +126,8 @@ export function computeBudgetBreakdown(input: ComputeBudgetInput): BudgetBreakdo
     categories.transport +
     categories.shopping;
 
-  categories.misc = Math.round(subtotal * 0.04);
-  categories.buffer = Math.round(Math.max(input.userBudget * 0.05, fromInr(MIN_BUFFER_INR, input.currency)));
+  categories.misc = Math.round(subtotal * MISC_SHARE);
+  categories.buffer = Math.round(Math.max(input.userBudget * BUFFER_SHARE, fromInr(MIN_BUFFER_INR, input.currency)));
 
   for (const key of Object.keys(categories) as BudgetCategory[]) {
     categories[key] = Math.round(categories[key]);
@@ -136,6 +141,28 @@ export function computeBudgetBreakdown(input: ComputeBudgetInput): BudgetBreakdo
     estimatedTotal,
     categories,
   };
+}
+
+/**
+ * The most the trip's own costs (flights, hotels, food, activities, transport
+ * and shopping) can add up to while the estimate, misc and buffer included,
+ * stays within `budget`. In the budget's currency; never below 0. The inverse
+ * of `budgetCovering`, and both follow `computeBudgetBreakdown`'s rules.
+ */
+export function spendableSubtotal(budget: number, currency: string): number {
+  if (!Number.isFinite(budget) || budget <= 0) return 0;
+  const buffer = Math.max(budget * BUFFER_SHARE, fromInr(MIN_BUFFER_INR, currency));
+  return Math.max(0, (budget - buffer) / (1 + MISC_SHARE));
+}
+
+/**
+ * The smallest budget whose estimate covers a trip whose own costs come to
+ * `subtotal`: those costs, plus misc on top, plus the buffer that budget would
+ * set aside (a share of the budget itself, but never less than the minimum).
+ */
+export function budgetCovering(subtotal: number, currency: string): number {
+  const withMisc = Math.max(0, subtotal) * (1 + MISC_SHARE);
+  return Math.max(withMisc + fromInr(MIN_BUFFER_INR, currency), withMisc / (1 - BUFFER_SHARE));
 }
 
 /**

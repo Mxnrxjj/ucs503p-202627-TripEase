@@ -4,6 +4,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { AlertTriangle, Plane, Sparkles } from "lucide-react";
 import { Alert, Badge, Button, Card } from "@/components/ui";
 import { fromInr } from "@/lib/fx";
+import type { TripBudgetCheck } from "@/lib/services/budget-check";
 import { formatMoney } from "@/lib/utils";
 import type { FlightQuote } from "@/types/flights";
 import { BUDGET_CATEGORY_LABELS, BUDGET_CATEGORY_ORDER } from "@/types/budget";
@@ -16,6 +17,10 @@ export function BudgetPanel({
   flights = null,
   suggestions,
   onAskTravis,
+  check = null,
+  note = null,
+  travelers = 1,
+  dayCount = 1,
 }: {
   budget: BudgetBreakdown;
   /** How the flight cost was worked out; null when there is nothing to explain. */
@@ -23,6 +28,12 @@ export function BudgetPanel({
   suggestions: SavingsSuggestion[];
   /** Open Travis with this already asked. */
   onAskTravis: (text: string) => void;
+  /** Whether the budget can cover even the cheapest version of the trip (`checkTripBudget`). */
+  check?: TripBudgetCheck | null;
+  /** A model's explanation of a budget that is too low, already checked to still apply (`currentBudgetNote`). */
+  note?: string | null;
+  travelers?: number;
+  dayCount?: number;
 }) {
   const overBy = budget.estimatedTotal - budget.total;
   const remaining = budget.total - budget.estimatedTotal;
@@ -67,7 +78,17 @@ export function BudgetPanel({
         </div>
       </Card>
 
-      {overBy > 0 ? (
+      {check?.verdict === "unrealistic" ? (
+        <UnrealisticBudgetNotice
+          check={check}
+          budget={budget}
+          overBy={overBy}
+          note={note}
+          travelers={travelers}
+          dayCount={dayCount}
+          flightsIncluded={check.minimum.parts.flights > 0}
+        />
+      ) : overBy > 0 ? (
         <Alert tone="warning">
           <div className="flex items-start gap-2">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -148,6 +169,59 @@ export function BudgetPanel({
         </Card>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * The budget is below what even the cheapest version of this trip costs, so
+ * no swap will fit it. Says so plainly, with the floor and what it is made of,
+ * and what would cover it. Every figure is the budget check's own.
+ */
+function UnrealisticBudgetNotice({
+  check,
+  budget,
+  overBy,
+  note,
+  travelers,
+  dayCount,
+  flightsIncluded,
+}: {
+  check: TripBudgetCheck;
+  budget: BudgetBreakdown;
+  overBy: number;
+  note: string | null;
+  travelers: number;
+  dayCount: number;
+  flightsIncluded: boolean;
+}) {
+  const money = (amount: number) => formatMoney(amount, budget.currency);
+  const { parts } = check.minimum;
+  const people = `${travelers} ${travelers === 1 ? "person" : "people"}`;
+  const days = `${dayCount} ${dayCount === 1 ? "day" : "days"}`;
+  const pieces = [
+    flightsIncluded ? `flights ${money(parts.flights)}` : null,
+    `3-star hotels ${money(parts.hotels)}`,
+    `simple local meals ${money(parts.food)}`,
+    `getting around ${money(parts.transport)}`,
+  ].filter(Boolean);
+  return (
+    <Alert tone="warning">
+      <div className="flex items-start gap-2" data-testid="budget-too-low">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        <div className="flex flex-col gap-1.5">
+          <p className="font-medium">This budget is too low for a trip like this.</p>
+          <p>
+            Even the cheapest version, for {people} over {days}, comes to at least {money(check.minimum.budget)}: {pieces.join(", ")}, plus a
+            small buffer. The plan below is {money(overBy)} over your {money(budget.total)}, and swapping places alone won&apos;t close a gap
+            like that.
+          </p>
+          {note ? <p>{note}</p> : null}
+          <p>
+            Raising the budget to at least {money(check.minimum.budget)}, or making the trip shorter, would cover a basic version of it.
+          </p>
+        </div>
+      </div>
+    </Alert>
   );
 }
 

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authErrorResponse, requireUser } from "@/lib/server/firebase-auth";
 import { createRateLimiter, RATE_LIMITS, rateLimitedResponse, waitInWords } from "@/lib/server/rate-limit";
+import { getAIProvider } from "@/lib/services/ai";
+import { checkTripBudget } from "@/lib/services/budget-check";
+import { budgetNoteRequest, writeBudgetNote } from "@/lib/services/budget-note";
 import { generateItinerary } from "@/lib/services/itinerary-generator";
 import {
   friendlyPlacesMessage,
@@ -23,6 +26,7 @@ const limiter = createRateLimiter(RATE_LIMITS.tripGenerate);
  * The second half of trip creation:
  *
  *   validated city plan -> places provider -> itinerary -> budget engine
+ *                                                        -> budget check (+ note)
  *
  * Accepts a plan produced by /api/trips/plan so the wizard doesn't pay for
  * planning twice; re-validates it regardless, because a plan arriving over
@@ -105,7 +109,16 @@ export async function POST(request: NextRequest) {
         { status: 502 },
       );
     }
-    return NextResponse.json({ itinerary: parsedOutput.data, plan });
+    // A budget below even the cheapest version of the trip gets a short note
+    // saying why, in words. The check decides and supplies every figure; the
+    // note is optional and never holds the trip up for long.
+    const itineraryOut = parsedOutput.data;
+    const check = checkTripBudget({ ...itineraryOut, travelers: input.travelers });
+    const budgetNote =
+      check.verdict === "unrealistic"
+        ? await writeBudgetNote(getAIProvider(), budgetNoteRequest(itineraryOut, input, check))
+        : null;
+    return NextResponse.json({ itinerary: { ...itineraryOut, budgetNote }, plan });
   } catch (error) {
     // The places service is the only source of places, so when it can't help the
     // traveller is told that, in words, instead of getting a trip made of guesses.

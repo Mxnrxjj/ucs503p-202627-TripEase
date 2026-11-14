@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { latLngSchema, ratingSchema, sourceRefSchema } from "@/lib/validation/places";
+import { budgetNoteSchema } from "@/lib/validation/budget-note";
 import { travelStyleSchema } from "@/lib/validation/shared";
 import { isSupportedCountry } from "@/lib/countries";
 import { isOriginAirport } from "@/lib/flights/airports";
@@ -201,6 +202,7 @@ export const generatedItinerarySchema = z.object({
   days: z.array(tripDaySchema).min(1),
   budget: budgetBreakdownSchema,
   flights: flightQuoteSchema.nullable().optional(),
+  budgetNote: budgetNoteSchema.nullable().optional(),
 });
 
 export type NewTripInputParsed = z.infer<typeof newTripInputSchema>;

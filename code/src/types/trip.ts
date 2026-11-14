@@ -1,4 +1,4 @@
-import type { BudgetBreakdown } from "./budget";
+import type { BudgetBreakdown, BudgetNote } from "./budget";
 import type { FlightQuote } from "./flights";
 import type { City, TravelerType, TravelStyle, TripDay } from "./itinerary";
 import type { CityPlan } from "./planning";
@@ -54,6 +54,13 @@ export interface Trip {
    */
   flights?: FlightQuote | null;
 
+  /**
+   * Written when the trip was built with a budget below what even its
+   * cheapest version costs (see `@/lib/services/budget-check`). Null or absent
+   * otherwise, and on trips saved before notes existed.
+   */
+  budgetNote?: BudgetNote | null;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -97,4 +104,6 @@ export interface GeneratedItinerary {
   budget: BudgetBreakdown;
   /** null when flights were left out of the budget. */
   flights?: FlightQuote | null;
+  /** A model's explanation of a budget that is too low; added by the generate route, never by the generator. */
+  budgetNote?: BudgetNote | null;
 }

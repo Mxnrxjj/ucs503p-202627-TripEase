@@ -2,6 +2,7 @@ import type { ZodType } from "zod";
 import { llmCityPlanSchema, type LlmCityPlan } from "@/lib/validation/planning";
 import { llmTravisTurnSchema, type LlmTravisTurn } from "@/lib/validation/travis";
 import { llmTripEditSchema, type LlmTripEdit } from "@/lib/validation/trip-agent";
+import { llmBudgetNoteSchema, type LlmBudgetNote } from "@/lib/validation/budget-note";
 import type { CityPlanRequest } from "@/types/planning";
 import {
   AIProviderError,
@@ -9,9 +10,11 @@ import {
   CITY_PLAN_JSON_SCHEMA,
   CITY_PLANNER_SYSTEM_PROMPT,
   type AIProvider,
+  type BudgetNoteRequest,
   type TravisRequest,
   type TripEditRequest,
 } from "./provider";
+import { BUDGET_NOTE_JSON_SCHEMA, BUDGET_NOTE_SYSTEM_PROMPT, buildBudgetNoteUserPrompt } from "./budget-note-prompt";
 import { buildTravisMessages, TRAVIS_JSON_SCHEMA } from "./travis-prompt";
 import { buildTripEditMessages, TRIP_EDIT_JSON_SCHEMA } from "./trip-edit-prompt";
 
@@ -126,6 +129,23 @@ export class GroqAIProvider implements AIProvider {
         // Edits should be repeatable: the same request on the same trip, the same change.
         temperature: 0.2,
         maxTokens: 1500,
+        reasoningEffort: "low",
+      },
+    );
+  }
+
+  async explainBudget(request: BudgetNoteRequest): Promise<LlmBudgetNote> {
+    return this.structured(
+      [
+        { role: "system", content: BUDGET_NOTE_SYSTEM_PROMPT },
+        { role: "user", content: buildBudgetNoteUserPrompt(request) },
+      ],
+      {
+        name: "budget_note",
+        schema: BUDGET_NOTE_JSON_SCHEMA,
+        parser: llmBudgetNoteSchema,
+        temperature: 0.3,
+        maxTokens: 600,
         reasoningEffort: "low",
       },
     );

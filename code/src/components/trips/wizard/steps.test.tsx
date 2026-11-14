@@ -11,6 +11,7 @@ import {
   flightsIncluded,
   flightsReady,
   focusStepProblem,
+  wizardDraft,
   type WizardData,
 } from "@/components/trips/wizard/steps";
 import { COUNTRIES } from "@/lib/countries";
@@ -498,5 +499,53 @@ describe("ReviewStep destination", () => {
     unmount();
     render(<ReviewStep data={{ ...EMPTY, destination: "India", focus: "" }} />);
     expect(screen.getByText("India")).toBeInTheDocument();
+  });
+});
+
+describe("wizardDraft", () => {
+  it("sends the place only when one was named, and the airport only with flights", () => {
+    const base = { ...EMPTY, destination: " Japan ", flyingFrom: "BOM" };
+    expect(wizardDraft(base)).toEqual({
+      destination: "Japan",
+      startDate: "2027-01-10",
+      endDate: "2027-01-17",
+      budget: 150_000,
+      currency: "INR",
+      travelers: 2,
+      travelerType: "couple",
+      preferences: [],
+      includeFlights: true,
+      origin: "BOM",
+    });
+    expect(wizardDraft({ ...base, focusMode: "place", focus: " Kyoto " }).focus).toBe("Kyoto");
+    expect(wizardDraft({ ...base, focusMode: "anywhere", focus: "Kyoto" })).not.toHaveProperty("focus");
+    const noFlights = wizardDraft({ ...base, includeFlights: false });
+    expect(noFlights.includeFlights).toBe(false);
+    expect(noFlights).not.toHaveProperty("origin");
+  });
+});
+
+describe("ReviewStep budget check", () => {
+  it("warns, without blocking, when the budget is below even a basic version of the trip", () => {
+    render(<ReviewStep data={{ ...EMPTY, destination: "Japan", budget: "5000", travelers: 1, flyingFrom: "DEL" }} />);
+    const warning = screen.getByTestId("budget-precheck");
+    expect(warning).toHaveTextContent("₹5,000 looks too low for this trip.");
+    expect(warning).toHaveTextContent(/for 1 person, with 3-star hotels, simple local meals and the flights, usually costs at least ₹[\d,]+/);
+    expect(warning).toHaveTextContent("You can still generate it");
+  });
+
+  it("says nothing when the budget is comfortable", () => {
+    render(<ReviewStep data={{ ...EMPTY, destination: "India", budget: "5000000", flyingFrom: "DEL" }} />);
+    expect(screen.queryByTestId("budget-precheck")).not.toBeInTheDocument();
+  });
+
+  it("leaves flights out of the sentence when they aren't in the budget", () => {
+    render(<ReviewStep data={{ ...EMPTY, destination: "Japan", budget: "5000", includeFlights: false }} />);
+    expect(screen.getByTestId("budget-precheck")).not.toHaveTextContent("the flights");
+  });
+
+  it("says nothing until there is a budget and a destination to check", () => {
+    render(<ReviewStep data={{ ...EMPTY, budget: "" }} />);
+    expect(screen.queryByTestId("budget-precheck")).not.toBeInTheDocument();
   });
 });
