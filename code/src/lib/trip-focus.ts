@@ -12,10 +12,13 @@ import { COUNTRIES, normalise, resolveCountry, type Country } from "@/lib/countr
  * built (see `searchPlaces` in the itinerary generator).
  */
 
+// `isFocus` in firestore.rules repeats these three for writes made around the
+// app, and a test keeps them equal: change one and that test names the other.
+export const FOCUS_MIN_LENGTH = 2;
 export const FOCUS_MAX_LENGTH = 60;
 
 /** Letters in any script, digits, spaces, and the punctuation place names use. */
-const FOCUS_CHARACTERS = /^[\p{L}\p{M}\p{N} .,'’()&-]+$/u;
+export const FOCUS_CHARACTERS = /^[\p{L}\p{M}\p{N} .,'’()&-]+$/u;
 
 /**
  * What's wrong with a focus the traveller typed, or null if it's fine. Empty
@@ -24,7 +27,7 @@ const FOCUS_CHARACTERS = /^[\p{L}\p{M}\p{N} .,'’()&-]+$/u;
 export function focusProblem(text: string): string | null {
   const focus = text.trim();
   if (focus === "") return null;
-  if (focus.length < 2) return "Type at least 2 letters, or leave this empty.";
+  if (focus.length < FOCUS_MIN_LENGTH) return `Type at least ${FOCUS_MIN_LENGTH} letters, or leave this empty.`;
   if (focus.length > FOCUS_MAX_LENGTH) return `Keep it under ${FOCUS_MAX_LENGTH} characters.`;
   if (!FOCUS_CHARACTERS.test(focus) || !/\p{L}/u.test(focus)) {
     return "Use a place name: letters, spaces and . , ' - ( ) & only.";

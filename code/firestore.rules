@@ -18,6 +18,26 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/trips/$(tripId)).data.ownerId == request.auth.uid;
     }
 
+    // A trip's focus, the place inside the country the traveller asked for
+    // ("Goa" in India). Absent or null means the whole country. Otherwise it
+    // has the shape the app saves (`focusProblem` and `cleanFocus` in
+    // src/lib/trip-focus.ts): 2 to 60 characters, letters in any script plus
+    // digits, spaces and . , ' ’ ( ) & - only, at least one letter, no space at
+    // either end and never two in a row. This stops anything else being
+    // written straight to Firestore around the app. `size()` counts the way
+    // JavaScript's `length` does, so the limits mean the same thing in both,
+    // and a test in src/lib/trip-focus.test.ts keeps them equal to the app's.
+    function isFocus(focus) {
+      return focus == null
+        || (focus is string
+          && focus.size() >= 2
+          && focus.size() <= 60
+          && focus.matches("[\\p{L}\\p{M}\\p{N} .,'’()&-]+")
+          && focus.matches(".*\\p{L}.*")
+          && focus == focus.trim()
+          && !focus.matches(".*  .*"));
+    }
+
     // A user's own profile document.
     match /users/{userId} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
@@ -29,12 +49,17 @@ service cloud.firestore {
 
       // On create the caller must stamp themselves as the owner.
       allow create: if isSignedIn()
-        && request.resource.data.ownerId == request.auth.uid;
+        && request.resource.data.ownerId == request.auth.uid
+        && isFocus(request.resource.data.get('focus', null));
 
-      // Ownership is immutable; only the owner may update or delete.
+      // Ownership is immutable; only the owner may update or delete. A focus
+      // that is left as it was is never checked again, so a trip saved before
+      // this rule can still be renamed and edited; a changed one must be a place name.
       allow update: if isSignedIn()
         && resource.data.ownerId == request.auth.uid
-        && request.resource.data.ownerId == resource.data.ownerId;
+        && request.resource.data.ownerId == resource.data.ownerId
+        && (request.resource.data.get('focus', null) == resource.data.get('focus', null)
+          || isFocus(request.resource.data.get('focus', null)));
 
       allow delete: if isSignedIn()
         && resource.data.ownerId == request.auth.uid;
