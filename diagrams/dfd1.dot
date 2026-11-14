@@ -1,0 +1,55 @@
+digraph DFD1 {
+  rankdir=LR; nodesep=0.5; ranksep=1.1;
+  fontname="Helvetica"; labelloc=t; label="DFD Level 1 - TripEase";
+  node [fontname="Helvetica", fontsize=10]; edge [fontname="Helvetica", fontsize=8];
+
+  // External entities: rounded rectangles
+  node [shape=box, style="rounded", width=1.4, height=0.6];
+  user   [label="Traveller"];
+  auth   [label="Firebase\nAuthentication"];
+  ai     [label="Groq AI"];
+  places [label="Google Places"];
+  osm    [label="OpenStreetMap\nTile Server"];
+
+  // Data store: two parallel lines with the name between them
+  d1 [shape=none, margin=0, label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="8"><TR><TD SIDES="TB" WIDTH="150">D1   Trips</TD></TR></TABLE>>];
+
+  // Processes: circles
+  node [shape=circle, style=filled, fillcolor="#fde7d3", width=1.3, fixedsize=true];
+  p1 [label="1.0\nAuthenticate\nUser"];
+  p2 [label="2.0\nPlan\nCities"];
+  p3 [label="3.0\nGenerate\nItinerary"];
+  p4 [label="4.0\nManage\nTrip"];
+  p5 [label="5.0\nAnalyse\nFeasibility"];
+  p6 [label="6.0\nShow Roadmap,\nMap & Budget"];
+
+  user -> p1 [label="credentials"];
+  p1 -> auth [label="credentials"];
+  auth -> p1 [label="ID token"];
+  p1 -> user [label="session"];
+
+  user -> p2 [label="destination, dates,\nbudget, preferences"];
+  p2 -> ai   [label="city planning request"];
+  ai -> p2   [label="suggested day split"];
+  p2 -> p3   [label="trip details +\nvalidated city plan"];
+
+  p3 -> places [label="place search"];
+  places -> p3 [label="places, coordinates,\nratings"];
+  p3 -> p4     [label="itinerary + budget"];
+
+  user -> p4   [label="edits, rename, delete,\nplace search"];
+  p4 -> places [label="place search"];
+  places -> p4 [label="matching places"];
+  p4 -> p3     [label="edited city list"];
+  p4 -> d1     [label="trip record"];
+  d1 -> p4     [label="trip record"];
+
+  d1 -> p5 [label="trip record"];
+  p5 -> p6 [label="travel segments,\nwarnings"];
+  d1 -> p6 [label="trip record"];
+  p6 -> places [label="photo request"];
+  places -> p6 [label="place photos"];
+  p6 -> osm [label="tile request"];
+  osm -> p6 [label="map tiles"];
+  p6 -> user [label="roadmap, map, budget,\nsavings tips, warnings"];
+}
