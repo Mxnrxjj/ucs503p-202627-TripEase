@@ -83,7 +83,7 @@ Values that are limited to a fixed set:
 - Activity `category` is one of `sightseeing`, `food`, `adventure`, `beach`, `culture`, `relaxation`, `shopping`, `nightlife` or `transport`.
 - City Plan `source` is `ai` or `fallback`.
 
-Optional attributes: on Hotel and Activity, `location`, `address`, `rating`, `imageUrl`, `source` and `priceIsEstimate` can be missing. Older trips do not have them, and neither do activities the user adds by hand. `referenceUrl` can be empty, and `fallbackReason` on a city plan is only filled when the AI plan was not used. A place with no real source is shown as "Demo data" (FR-12).
+Optional attributes: on Hotel and Activity, `location`, `address`, `rating`, `imageUrl`, `source` and `priceIsEstimate` can be missing. A Hotel's `rateBasis` (the class its price is for, whether the figure is the city's own, modelled from its country's main city, or borrowed from its country, region or everywhere, for a modelled figure the kind of place it was scaled for, and `derived` when the class's price was worked out from the city's 4-star price rather than read from a source) is missing on hotels saved before it existed. Older trips do not have them, and neither do activities the user adds by hand. `referenceUrl` can be empty, and `fallbackReason` on a city plan is only filled when the AI plan was not used. A place with no real source is shown as "Demo data" (FR-12).
 
 ## 6. How it is stored
 

@@ -8,6 +8,7 @@ const raw = (fields: Partial<LlmOperation> & Pick<LlmOperation, "type">): LlmOpe
   cityId: null,
   query: null,
   category: null,
+  starClass: null,
   dayCount: null,
   cities: null,
   ...fields,
@@ -22,6 +23,27 @@ describe("toEditOperation", () => {
     expect(toEditOperation(raw({ type: "change_hotel", cityId: "c1", query: "riverside hotel" }), 0)).toEqual({ type: "change_hotel", cityId: "c1", query: "riverside hotel" });
     expect(toEditOperation(raw({ type: "set_cities", cities: [{ name: "Bangkok", days: 3 }] }), 0)).toEqual({ type: "set_cities", cities: [{ name: "Bangkok", days: 3 }] });
     expect(toEditOperation(raw({ type: "set_trip_length", dayCount: 5 }), 0)).toEqual({ type: "set_trip_length", dayCount: 5 });
+  });
+
+  it("keeps a star class change on a hotel, and leaves the key out when there is none", () => {
+    expect(toEditOperation(raw({ type: "change_hotel", cityId: "c1", query: "well-rated hotel", starClass: "lower" }), 0)).toEqual({
+      type: "change_hotel",
+      cityId: "c1",
+      query: "well-rated hotel",
+      starClass: "lower",
+    });
+    expect(toEditOperation(raw({ type: "change_hotel", cityId: "c1", query: "a hotel", starClass: "higher" }), 0)).toMatchObject({ starClass: "higher" });
+    expect(toEditOperation(raw({ type: "change_hotel", cityId: "c1", query: "a hotel" }), 0)).not.toHaveProperty("starClass");
+    // Left out of every other operation, whatever a model puts there.
+    expect(toEditOperation(raw({ type: "remove_activity", activityId: "a1", starClass: "lower" }), 0)).not.toHaveProperty("starClass");
+  });
+
+  it("refuses a star class it doesn't know", () => {
+    const parsed = llmTripEditSchema.safeParse({
+      reply: "ok",
+      operations: [{ ...raw({ type: "change_hotel", cityId: "c1", query: "a hotel" }), starClass: "same" }],
+    });
+    expect(parsed.success).toBe(false);
   });
 
   it("keeps an optional category, and leaves the key out when there is none", () => {

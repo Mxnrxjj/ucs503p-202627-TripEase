@@ -44,7 +44,8 @@ export type EditOperation =
   | { type: "move_activity"; activityId: string; toDayId: string }
   | { type: "replace_activity"; activityId: string; query: string }
   | { type: "add_activity"; dayId: string; query: string; category?: ActivityCategory }
-  | { type: "change_hotel"; cityId: string; query: string }
+  /** `starClass`: one star class cheaper or dearer than the hotel it replaces; left out, the same class. */
+  | { type: "change_hotel"; cityId: string; query: string; starClass?: "lower" | "higher" }
   /** The complete new city list, in visiting order. Its days set the trip's length. */
   | { type: "set_cities"; cities: { name: string; days: number }[] }
   /** A new length: our code spreads the days across the cities there already are. */

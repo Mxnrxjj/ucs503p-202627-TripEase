@@ -172,6 +172,23 @@ describe("buildSavingsSuggestions choices", () => {
     expect(hotel?.targetId).toBe("delhi");
   });
 
+  it("gives no cheaper-hotel tip for a hotel already in the cheapest class, which a swap can't lower", () => {
+    const basis = (tier: "budget" | "mid" | "upscale") => ({ tier, basis: "city" as const, from: "Delhi", includesTax: false });
+    const inClass = (id: string, name: string, price: number, tier: "budget" | "mid" | "upscale"): City => {
+      const c = city(id, name, price, 2);
+      return { ...c, hotel: { ...c.hotel, rateBasis: basis(tier) } };
+    };
+    // The dearest hotel is the cheapest class: the tip goes to the next one.
+    const cities = [inClass("a", "Agra", 9_000, "budget"), inClass("d", "Delhi", 4_000, "mid")];
+    expect(buildSavingsSuggestions(cities, days(1), over, 1).find((s) => s.kind === "hotel-downgrade")?.targetId).toBe("d");
+    // All in the cheapest class: nothing to offer.
+    expect(
+      buildSavingsSuggestions([inClass("a", "Agra", 9_000, "budget")], days(1), over, 1).find((s) => s.kind === "hotel-downgrade"),
+    ).toBeUndefined();
+    // A hotel with no recorded class (saved before classes) is still offered one.
+    expect(buildSavingsSuggestions([city("a", "Agra", 9_000, 2)], days(1), over, 1).find((s) => s.kind === "hotel-downgrade")?.targetId).toBe("a");
+  });
+
   it("gives no cheaper-hotel tip when no city has a night to save on", () => {
     const hotel = buildSavingsSuggestions([city("agra", "Agra", 9_000, 0)], days(1), over, 1).find((s) => s.kind === "hotel-downgrade");
     expect(hotel).toBeUndefined();

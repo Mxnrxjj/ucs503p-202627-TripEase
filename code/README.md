@@ -423,10 +423,26 @@ is not the same as best, so `places/ranking.ts` chooses:
   ones the trip has room for. (Without that, a mediocre place at the edge of
   town could take a day's slot from a far better one; there is a test that
   fails without the fix.)
-- **The hotel is the best-rated one that fits the budget**, passing over one
-  whose price level puts a night above 40% of the trip's budget spread over its
-  nights. Google gives a price level, never a price, so the nightly price is an
-  estimate and says so.
+- **The hotel is the best-rated one of the class the budget allows.** Google
+  gives no price and no star rating for a hotel, so `lib/hotels/` holds
+  researched typical prices for 3, 4 and 5-star rooms in 93 of the app's 129
+  cities. The budget picks the highest class whose price fits 40% of the trip
+  budget spread over its nights and rooms, the search asks Google for that
+  class ("4 star hotels in Paris, France"), and the hotel is priced at that
+  class's typical price, labelled as an estimate with what it is based on
+  ("Typical 4-star price in Paris"). A city with no figures is modelled: its
+  country's main city's prices times a ratio for the kind of place it is
+  (beach, nature, heritage or big city), where each ratio is the median, over
+  the cities that do have figures, of their 4-star price against their own
+  main city's ("Estimated 4-star price for a beach town, from Athens prices").
+  A country with no figures at all uses its region's median. Where a city's 3 or
+  5-star price was itself worked out from its 4-star price (rather than read
+  from a source), the label says so ("Estimated 5-star price in Phuket, worked
+  out from its 4-star"). Common other spellings (Tromsø/Tromso, Fez/Fes,
+  Cuzco/Cusco, Marrakesh) are matched too.
+  Asking Travis for a cheaper or dearer hotel moves it one class and prices it
+  at that class, and the "cheaper hotel" saving is not offered for a hotel that
+  is already 3-star.
 
 Provider responses are cached in-process for 10 minutes
 (`places/cache.ts`), so regenerating a similar trip doesn't re-bill the same
@@ -441,7 +457,7 @@ distributed cache.
 | Rating and review count | Real, from Google (absent for many places) |
 | Website / Google Maps link | Real, from Google |
 | Photos | Real, proxied via `/api/places/photo` |
-| **Cost** | **Derived from Google's coarse `priceLevel` enum, never an exact price.** Always flagged `(est.)` in the UI. |
+| **Cost** | **Restaurants and sights: derived from Google's coarse `priceLevel` enum, never an exact price. Hotels: from researched averages by class (`lib/hotels/`), since Google documents `priceLevel` for food, services and shopping, not lodging.** Always flagged `(est.)` in the UI. |
 | Opening hours, availability, bookability | Not requested, not implied |
 
 Google Places is a source of *place identity and location*, not of travel
@@ -559,11 +575,16 @@ There is no demo or synthetic data anywhere in the product. What each part is:
   trip, but it now means "not verified": it is true only for something the
   traveller typed in, or for sample places in a trip saved by an earlier
   version. The UI says **"Not verified"**.
-- **Prices are estimates.** Google gives a coarse price *level* for a hotel,
-  never an amount, so a hotel's nightly price, and every flight, meal and
-  activity cost, is an estimate (`priceIsEstimate`) and is labelled one. A flight
-  is one flat estimate per traveller, and a hotel with no price level gets a flat
-  estimate. They are not data.
+- **Prices are estimates.** A hotel's nightly price is the typical price for its
+  class in that city, from figures researched in November 2026, not a live rate:
+  it does not change with the season, the weekday or how early the room is
+  booked. 34 of the 129 cities are modelled from their country's main city
+  (`rates.test.ts` leaves each sourced city out and predicts it: 33 of 52 land
+  within 30%, against 28 for using the main city as it is), and 2 use their
+  region's median. Bhutan's per-night visitor fee and other
+  per-person tourist taxes are not included. Meal and activity costs come from Google's coarse price level, and a
+  flight is one flat estimate per traveller. All are labelled estimates
+  (`priceIsEstimate`); they are not data.
 - **Travis** needs a real model. With no AI configured he says he is unavailable
   and points to planning by hand.
 - **Budget numbers** are computed from what the places provider returned (see
@@ -626,6 +647,9 @@ src/
       photo-signing.ts           signs and checks /api/places/photo links
       rate-limit.ts              per-user sliding-window limiter (best-effort, in memory)
     fx.ts                       static, approximate exchange rates (estimates, labelled as such)
+    hotels/
+      rate-data.ts              typical 3/4/5-star room prices by city, with sources
+      rates.ts                  city → modelled → country → region fallback, India's GST, class from the budget
     services/
       auth.ts                    the ONLY place Firebase Auth is touched (unchanged)
       trips.ts                   the ONLY place Firestore trip docs are touched
@@ -666,7 +690,7 @@ src/
         provider.ts               the PlacesProvider interface every provider implements
         google-provider.ts        live provider backed by the Places API (New)
         cache.ts                  in-process TTL cache so repeat searches aren't re-billed
-        ranking.ts                chooses the best places from real ratings (Bayesian score, hotel vs budget)
+        ranking.ts                chooses the best places from real ratings (Bayesian score)
         errors.ts                 typed provider failures + user-safe messages
         index.ts                  getPlacesProvider() — Google Places, or an error when there is no key
     validation/

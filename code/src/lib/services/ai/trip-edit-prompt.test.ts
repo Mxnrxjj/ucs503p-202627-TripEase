@@ -114,6 +114,21 @@ describe("buildTripEditMessages", () => {
   });
 });
 
+describe("the star class of a hotel", () => {
+  it("is explained to the model, and only as a move of one class", () => {
+    expect(TRIP_EDIT_SYSTEM_PROMPT).toMatch(/change_hotel: \{ cityId, query, starClass \}/);
+    expect(TRIP_EDIT_SYSTEM_PROMPT).toMatch(/starClass/);
+  });
+
+  it("is a required property that may be empty, with only the two moves allowed", () => {
+    const item = TRIP_EDIT_JSON_SCHEMA.properties.operations.items;
+    expect(item.required).toContain("starClass");
+    const prop = item.properties.starClass;
+    expect([...prop.type]).toEqual(["string", "null"]);
+    expect([...prop.enum]).toEqual(["lower", "higher", null]);
+  });
+});
+
 describe("TRIP_EDIT_JSON_SCHEMA", () => {
   it("lists every property as required, as strict mode wants", () => {
     const item = TRIP_EDIT_JSON_SCHEMA.properties.operations.items;

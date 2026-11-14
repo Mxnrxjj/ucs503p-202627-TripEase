@@ -21,6 +21,7 @@ const blank = (): LlmOperation => ({
   cityId: null,
   query: null,
   category: null,
+  starClass: null,
   dayCount: null,
   cities: null,
 });
@@ -178,6 +179,24 @@ export function demoTripEdit(trip: AgentTrip, message: string, focus?: TripAgent
   }
 
   // ---- hotel ----------------------------------------------------------
+  // "Find me a cheaper, well-rated hotel in Rome": one star class down (or up).
+  const classMove = /\bhotel\b/i.test(text)
+    ? /\b(cheaper|more modest|less expensive)\b/i.test(text)
+      ? "lower"
+      : /\b(more luxurious|more expensive|dearer|pricier|fancier)\b/i.test(text)
+        ? "higher"
+        : null
+    : null;
+  if (classMove) {
+    const named = text.match(/\bin\s+(.+?)\s*$/i);
+    const city = (named ? findCity(named[1]) : null) ?? (focus?.cityId ? cities.find((c) => c.id === focus.cityId) ?? null : null) ?? (cities.length === 1 ? cities[0] : null);
+    if (!city) return reply("Which city's hotel should I change?");
+    return reply(
+      `I'll look for a ${classMove === "lower" ? "cheaper" : "dearer"} hotel in ${city.name}.`,
+      [op({ type: "change_hotel", cityId: city.id, query: "well-rated hotel", starClass: classMove })],
+    );
+  }
+
   const hotel = text.match(/^(?:please\s+)?(?:change|switch)\s+(?:the\s+)?hotel(?:\s+in\s+(.+?))?\s+to\s+(.+)$/i);
   if (hotel) {
     const city = (hotel[1] ? findCity(hotel[1]) : null) ?? (focus?.cityId ? cities.find((c) => c.id === focus.cityId) ?? null : null) ?? (cities.length === 1 ? cities[0] : null);

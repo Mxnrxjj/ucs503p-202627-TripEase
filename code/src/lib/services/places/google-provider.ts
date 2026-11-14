@@ -23,9 +23,11 @@ import type { PlaceSearchParams, PlacesProvider } from "./provider";
  *
  * What Google does and doesn't give us, and how that's represented:
  * - Identity, coordinates, address, rating, review count, website: real, used as-is.
- * - Price: only a coarse `priceLevel` enum, never an amount. Anything we show
- *   as a cost is derived from that enum and always flagged
- *   `price.isEstimate = true`. It is never presented as a Google price.
+ * - Price: only a coarse `priceLevel` enum, never an amount, and Google
+ *   documents it for food, services and shopping, not for lodging. A
+ *   restaurant's or a sight's cost is derived from that enum and always
+ *   flagged `price.isEstimate = true`; a hotel's comes from researched
+ *   averages instead (`@/lib/hotels/rates`). Never presented as a Google price.
  * - Opening hours, live availability, bookability: not requested, not implied.
  */
 
@@ -116,10 +118,9 @@ function inferRating(raw: GoogleRawPlace): Rating | null {
 function inferPrice(
   raw: GoogleRawPlace,
   currency: string,
-  multiplier = 1,
 ): { amount: number; currency: string; isEstimate: true } | null {
   if (!raw.priceLevel || !(raw.priceLevel in PRICE_LEVEL_TO_INR)) return null;
-  return { amount: fromInr(PRICE_LEVEL_TO_INR[raw.priceLevel] * multiplier, currency), currency, isEstimate: true };
+  return { amount: fromInr(PRICE_LEVEL_TO_INR[raw.priceLevel], currency), currency, isEstimate: true };
 }
 
 /** Pull city/country out of Google's address components. Null when absent — never guessed. */
@@ -144,12 +145,14 @@ function photoUrl(photoName: string | undefined): string | null {
 function buildQuery(params: PlaceSearchParams): string {
   if (params.query?.trim()) {
     const place = params.country ? `${params.destination}, ${params.country}` : params.destination;
-    return `${params.query.trim()} in ${place}`;
+    // A hotel search for a class ("3 star well-rated hotel") when one is asked for.
+    const stars = params.type === "hotel" && params.hotelClass ? `${params.hotelClass} star ` : "";
+    return `${stars}${params.query.trim()} in ${place}`;
   }
   const place = params.country ? `${params.destination}, ${params.country}` : params.destination;
   switch (params.type) {
     case "hotel":
-      return `hotels in ${place}`;
+      return params.hotelClass ? `${params.hotelClass} star hotels in ${place}` : `hotels in ${place}`;
     case "restaurant":
       return params.mealType ? `best ${params.mealType} restaurants in ${place}` : `best restaurants in ${place}`;
     case "nightlife":
@@ -196,10 +199,9 @@ export class GooglePlacesProvider implements PlacesProvider {
         );
       }
 
-      const hotelMultiplier = params.type === "hotel" ? 3 : 1;
       return (parsed.data.places ?? [])
         .filter((raw) => Boolean(raw.displayName?.text))
-        .map((raw) => this.mapPlace(raw, params.type, currency, hotelMultiplier, params.mealType))
+        .map((raw) => this.mapPlace(raw, params.type, currency, params.mealType))
         .slice(0, limit);
     });
   }
@@ -228,7 +230,7 @@ export class GooglePlacesProvider implements PlacesProvider {
         );
       }
       if (!parsed.data.displayName?.text) return null;
-      return this.mapPlace(parsed.data, "attraction", currency, 1, undefined);
+      return this.mapPlace(parsed.data, "attraction", currency, undefined);
     });
   }
 
@@ -277,7 +279,6 @@ export class GooglePlacesProvider implements PlacesProvider {
     raw: GoogleRawPlace,
     type: PlaceType,
     currency: string,
-    priceMultiplier: number,
     mealType: PlaceSearchParams["mealType"],
   ): Place {
     const { category, styleTags } = inferCategoryAndStyles(raw.types, type);
@@ -297,7 +298,9 @@ export class GooglePlacesProvider implements PlacesProvider {
       country,
       imageUrl: photoUrl(raw.photos?.[0]?.name),
       rating: inferRating(raw),
-      price: inferPrice(raw, currency, priceMultiplier),
+      // A price level is a restaurant's or a shop's, not a nightly room rate, so
+      // a hotel gets none here: its price comes from `@/lib/hotels/rates`.
+      price: type === "hotel" ? null : inferPrice(raw, currency),
       durationMinutes: null,
       mealTypes: type === "restaurant" && mealType ? [mealType] : null,
       source: {

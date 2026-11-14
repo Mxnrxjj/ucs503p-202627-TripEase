@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { AIProviderError, type AIProvider, type TripEditRequest } from "@/lib/services/ai";
 import { MockAIProvider } from "@/test-support/ai/mock-provider";
+import { demoTripEdit } from "@/test-support/ai/mock-trip-edit";
 import { getMockPlacesProvider } from "@/test-support/places";
 import { runTripAgent } from "@/lib/services/trip-agent";
 import { buildThailandTrip } from "@/test-support/trip-fixture";
@@ -20,6 +21,7 @@ const op = (fields: Partial<LlmOperation> & Pick<LlmOperation, "type">): LlmOper
   cityId: null,
   query: null,
   category: null,
+  starClass: null,
   dayCount: null,
   cities: null,
   ...fields,
@@ -53,6 +55,47 @@ class Scripted implements AIProvider {
 
 const run = (provider: AIProvider, text = "do something") => runTripAgent({ trip, messages: ask(text) }, provider, places, "2026-11-10");
 const firstActivity = () => trip.days[0].activities[0];
+
+describe("the demo stand-in asked for a cheaper or dearer hotel", () => {
+  const cityName = () => trip.cities[0].name;
+  const hotelOp = (text: string, focus?: { cityId?: string }) =>
+    demoTripEdit(trip, text, focus).operations.find((o) => o.type === "change_hotel");
+
+  it("asks for the named city's hotel one class cheaper", () => {
+    expect(hotelOp(`Find me a cheaper, well-rated hotel in ${cityName()}`)).toMatchObject({
+      cityId: trip.cities[0].id,
+      starClass: "lower",
+    });
+  });
+
+  it("asks for one class dearer when the traveller wants something fancier", () => {
+    expect(hotelOp(`I want a fancier hotel in ${trip.cities[1].name}`)).toMatchObject({ cityId: trip.cities[1].id, starClass: "higher" });
+    expect(hotelOp(`a more luxurious hotel in ${cityName()}`)).toMatchObject({ starClass: "higher" });
+  });
+
+  it("asks which city when there are several and none is named", () => {
+    const answer = demoTripEdit(trip, "find a cheaper hotel");
+    expect(answer.operations).toEqual([]);
+    expect(answer.reply).toBe("Which city's hotel should I change?");
+  });
+
+  it("uses the city the traveller is looking at", () => {
+    expect(hotelOp("a cheaper hotel please", { cityId: trip.cities[1].id })).toMatchObject({ cityId: trip.cities[1].id });
+  });
+
+  it("ignores talk of cheap things that isn't about a hotel", () => {
+    const answer = demoTripEdit(trip, "find me cheaper dinner spots");
+    expect(answer.operations).toEqual([]);
+    expect(answer.reply).not.toBe("Which city's hotel should I change?");
+    expect(demoTripEdit(trip, "cheaper dinner spots", { cityId: trip.cities[0].id }).operations).toEqual([]);
+  });
+
+  it("leaves 'change the hotel to X' as a named hotel, with no class move", () => {
+    const op = hotelOp(`change the hotel in ${cityName()} to Riverside`);
+    expect(op).toBeDefined();
+    expect(op).toMatchObject({ starClass: null });
+  });
+});
 
 describe("a request the agent can carry out", () => {
   it("returns the model's sentence and a change set to confirm", async () => {

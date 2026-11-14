@@ -155,9 +155,10 @@ export function buildSavingsSuggestions(
   const overBy = budget.estimatedTotal - budget.total;
   if (overBy <= 0) return suggestions;
 
-  // A city with no nights has no hotel to save on.
+  // A city with no nights has no hotel to save on, and neither has one that is
+  // already in the cheapest class: a swap keeps the class unless asked to lower it.
   const priciestHotel = cities
-    .filter((c) => c.hotel.nights > 0)
+    .filter((c) => c.hotel.nights > 0 && c.hotel.rateBasis?.tier !== "budget")
     .sort((a, b) => hotelCost(b.hotel, travelers) - hotelCost(a.hotel, travelers))[0];
   if (priciestHotel && priciestHotel.hotel.pricePerNight > 0) {
     const savings = Math.round(hotelCost(priciestHotel.hotel, travelers) * 0.3);

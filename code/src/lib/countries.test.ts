@@ -167,6 +167,17 @@ describe("helpers", () => {
   it("normalises accents, case and punctuation", () => {
     expect(normalise("  Réunion,  Île! ")).toBe("reunion ile");
   });
+
+  it("folds the letters that are not an accent on another letter", () => {
+    // NFD leaves these alone, and the next step would turn "Tromsø" into "troms".
+    expect(normalise("Tromsø")).toBe("tromso");
+    expect(normalise("Tromsø")).toBe(normalise("Tromso"));
+    expect(normalise("Straße")).toBe("strasse");
+    expect(normalise("Łódź")).toBe("lodz");
+    expect(normalise("Đà Nẵng")).toBe("da nang");
+    expect(normalise("Æbleø")).toBe("aebleo");
+    expect(normalise("Œuvre")).toBe("oeuvre");
+  });
 });
 
 describe("countriesForMonth", () => {

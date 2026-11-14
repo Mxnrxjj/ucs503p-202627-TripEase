@@ -195,8 +195,183 @@ describe("changing a hotel", () => {
     expect(updated.hotel.nights).toBe(city.hotel.nights);
   });
 
+  it("prices the new hotel as the same class as the one it replaces", async () => {
+    // Bangkok: 4-star ₹5,700, 5-star ₹12,000 a night.
+    const city = trip.cities[0];
+    const upscale = {
+      ...trip,
+      cities: trip.cities.map((c) =>
+        c.id === city.id
+          ? { ...c, hotel: { ...c.hotel, name: "An Older Hotel", rateBasis: { ...c.hotel.rateBasis!, tier: "upscale" as const } } }
+          : c,
+      ),
+    };
+    const change = await okChange([{ type: "change_hotel", cityId: city.id, query: city.hotel.name }], upscale);
+    const hotel = change.patch.cities.find((c) => c.id === city.id)!.hotel;
+    expect(hotel.name).toBe(city.hotel.name);
+    expect(hotel.rateBasis).toEqual({ tier: "upscale", basis: "city", from: "Bangkok", includesTax: false });
+    expect(hotel.pricePerNight).toBe(12_000);
+    expect(hotel.priceIsEstimate).toBe(true);
+  });
+
+  it("prices a hotel saved before classes existed as 4-star", async () => {
+    const city = trip.cities[0];
+    const { rateBasis: _dropped, ...oldHotel } = city.hotel;
+    void _dropped;
+    const old = {
+      ...trip,
+      cities: trip.cities.map((c) => (c.id === city.id ? { ...c, hotel: { ...oldHotel, name: "An Older Hotel" } } : c)),
+    };
+    const change = await okChange([{ type: "change_hotel", cityId: city.id, query: city.hotel.name }], old);
+    const hotel = change.patch.cities.find((c) => c.id === city.id)!.hotel;
+    expect(hotel.rateBasis?.tier).toBe("mid");
+    expect(hotel.pricePerNight).toBe(5_700);
+  });
+
   it("refuses a city that is not in the trip", async () => {
     expect((await problems([{ type: "change_hotel", cityId: "city-nope", query: "anything" }]))[0]).toMatch(/no city "city-nope"/);
+  });
+
+  describe("asking for a cheaper or dearer class", () => {
+    // Bangkok: 3-star ₹4,500, 4-star ₹5,700, 5-star ₹12,000 a night.
+    const city = () => trip.cities[0];
+    const inClass = (tier: "budget" | "mid" | "upscale", withRateBasis = true): AgentTrip => ({
+      ...trip,
+      cities: trip.cities.map((c) => {
+        if (c.id !== city().id) return c;
+        const { rateBasis, ...rest } = c.hotel;
+        return {
+          ...c,
+          hotel: { ...rest, name: "An Older Hotel", ...(withRateBasis ? { rateBasis: { ...rateBasis!, tier } } : {}) },
+        };
+      }),
+    });
+    const swap = async (base: AgentTrip, starClass?: "lower" | "higher") => {
+      const change = await okChange(
+        [{ type: "change_hotel", cityId: city().id, query: city().hotel.name, ...(starClass ? { starClass } : {}) }],
+        base,
+      );
+      return { hotel: change.patch.cities.find((c) => c.id === city().id)!.hotel, lines: change.lines };
+    };
+
+    it("moves a 5-star hotel down to 4-star, and prices it so", async () => {
+      const { hotel, lines } = await swap(inClass("upscale"), "lower");
+      expect(hotel.rateBasis?.tier).toBe("mid");
+      expect(hotel.pricePerNight).toBe(5_700);
+      expect(lines[0]).toMatch(/\(4-star, one class cheaper\)\.$/);
+    });
+
+    it("moves a 4-star hotel down to 3-star, which is what the 'cheaper hotel' tip is for", async () => {
+      const { hotel } = await swap(inClass("mid"), "lower");
+      expect(hotel.rateBasis?.tier).toBe("budget");
+      expect(hotel.pricePerNight).toBe(4_500);
+      expect(hotel.pricePerNight).toBeLessThan(city().hotel.pricePerNight);
+    });
+
+    it("moves a 4-star hotel up to 5-star", async () => {
+      const { hotel, lines } = await swap(inClass("mid"), "higher");
+      expect(hotel.rateBasis?.tier).toBe("upscale");
+      expect(hotel.pricePerNight).toBe(12_000);
+      expect(lines[0]).toMatch(/\(5-star, one class dearer\)\.$/);
+    });
+
+    it("stays in the cheapest class when it is there already, and says so", async () => {
+      const { hotel, lines } = await swap(inClass("budget"), "lower");
+      expect(hotel.rateBasis?.tier).toBe("budget");
+      expect(hotel.pricePerNight).toBe(4_500);
+      expect(lines[0]).toMatch(/\(3-star: already the cheapest class\)\.$/);
+    });
+
+    it("stays in the dearest class when it is there already, and says so", async () => {
+      const { hotel, lines } = await swap(inClass("upscale"), "higher");
+      expect(hotel.rateBasis?.tier).toBe("upscale");
+      expect(lines[0]).toMatch(/\(5-star: already the dearest class\)\.$/);
+    });
+
+    it("counts a hotel saved before classes existed as 4-star", async () => {
+      const lower = await swap(inClass("mid", false), "lower");
+      expect(lower.hotel.rateBasis?.tier).toBe("budget");
+      const higher = await swap(inClass("mid", false), "higher");
+      expect(higher.hotel.rateBasis?.tier).toBe("upscale");
+    });
+
+    it("says nothing about a class when none was asked for", async () => {
+      const { hotel, lines } = await swap(inClass("upscale"));
+      expect(hotel.rateBasis?.tier).toBe("upscale");
+      expect(lines[0]).toBe(`Change the ${city().name} hotel from An Older Hotel to ${hotel.name}.`);
+    });
+
+    it("needs no matching word when the search was for a class: 'a well-rated hotel' names no hotel", async () => {
+      const ask = (starClass?: "lower") =>
+        run([{ type: "change_hotel", cityId: city().id, query: "well-rated hotel", ...(starClass ? { starClass } : {}) }], inClass("upscale"));
+      const withClass = await ask("lower");
+      expect(withClass.ok).toBe(true);
+    });
+
+    it("still refuses a request that matches nothing when no class was asked for", async () => {
+      const result = await run([{ type: "change_hotel", cityId: city().id, query: "zzqx", }], inClass("upscale"));
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.problems[0]).toBe(`I couldn't find a hotel matching "zzqx" in ${city().name}.`);
+    });
+
+    it("says which class it could not find another hotel in, when the city has none", async () => {
+      // The demo catalogue has one hotel per city, and it is the one being replaced.
+      const result = await run([{ type: "change_hotel", cityId: city().id, query: "well-rated hotel", starClass: "lower" }]);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.problems[0]).toBe(`I couldn't find another 3-star hotel in ${city().name}.`);
+    });
+
+    describe("when the hotels found say nothing the request does", () => {
+      // Google's hotel names rarely include "hotel" or "well-rated", so nothing in them matches those words.
+      const named = async (name: string): Promise<typeof places> => {
+        const [real] = await places.searchPlaces({ destination: city().name, country: "Thailand", type: "hotel", limit: 1 });
+        const stub = { ...real, name, description: "Rooms and a pool", address: "1 Some Road" };
+        return {
+          name: places.name,
+          searchPlaces: async () => [stub],
+          getPlaceDetails: async () => stub,
+        } as unknown as typeof places;
+      };
+      const ask = async (query: string, starClass?: "lower") =>
+        buildChangeSet(
+          inClass("upscale"),
+          [{ type: "change_hotel", cityId: city().id, query, ...(starClass ? { starClass } : {}) }],
+          { places: await named("The Oriental") },
+        );
+
+      it("takes the hotel the class search returned", async () => {
+        const result = await ask("well-rated hotel", "lower");
+        expect(result.ok).toBe(true);
+        if (result.ok) expect(result.changeSet.patch.cities.find((c) => c.id === city().id)!.hotel.name).toBe("The Oriental");
+      });
+
+      it("does so when the request is only filler words", async () => {
+        expect((await ask("some nice place", "lower")).ok).toBe(true);
+      });
+
+      it("is not so easy for a request with no class: the hotel has to match what was asked", async () => {
+        expect((await ask("well-rated hotel")).ok).toBe(false);
+        expect((await ask("some nice place")).ok).toBe(false);
+      });
+    });
+
+    it("never puts back the hotel it is replacing", async () => {
+      const base = inClass("upscale");
+      const current = base.cities.find((c) => c.id === city().id)!.hotel.name;
+      const change = await okChange([{ type: "change_hotel", cityId: city().id, query: "well-rated hotel", starClass: "lower" }], base);
+      expect(change.patch.cities.find((c) => c.id === city().id)!.hotel.name.toLowerCase()).not.toBe(current.toLowerCase());
+    });
+
+    it("looks for hotels of the class it is moving to, and only then", async () => {
+      const searches: unknown[] = [];
+      const spy = { ...places, name: places.name, searchPlaces: async (p: Parameters<typeof places.searchPlaces>[0]) => (searches.push(p), places.searchPlaces(p)), getPlaceDetails: places.getPlaceDetails.bind(places) };
+      const ask = (starClass?: "lower") =>
+        buildChangeSet(inClass("upscale"), [{ type: "change_hotel", cityId: city().id, query: city().hotel.name, ...(starClass ? { starClass } : {}) }], { places: spy as typeof places });
+      await ask("lower");
+      expect(searches.at(-1)).toMatchObject({ type: "hotel", hotelClass: 4 });
+      await ask();
+      expect(searches.at(-1)).not.toHaveProperty("hotelClass");
+    });
   });
 });
 

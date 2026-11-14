@@ -6,6 +6,7 @@ import { cn, formatMoney } from "@/lib/utils";
 import type { City } from "@/types/itinerary";
 import { HotelEditorDialog } from "@/components/roadmap/hotel-editor-dialog";
 import { hotelCost, roomsFor } from "@/lib/services/budget-engine";
+import { describeRateBasis } from "@/lib/hotels/rates";
 
 /**
  * Where a city's nights are spent, as one tappable card that opens the hotel
@@ -74,6 +75,9 @@ export function HotelCard({
             {rooms > 1 ? ` · ${rooms} rooms` : ""} · {nights} {nights === 1 ? "night" : "nights"} · {formatMoney(total, currency)}
             {city.hotel.isDemoData ? " · not verified" : ""}
           </span>
+          {city.hotel.rateBasis && city.hotel.priceIsEstimate !== false ? (
+            <span className="block text-xs text-zinc-400">{describeRateBasis(city.hotel.rateBasis)}</span>
+          ) : null}
         </span>
         <span className="sr-only">Edit hotel in {city.name}</span>
       </button>
