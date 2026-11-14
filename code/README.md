@@ -463,6 +463,50 @@ is not the same as best, so `places/ranking.ts` chooses:
   trip ends in, which gets one fewer (none if the trip ends the day it arrives). The
   hotel editor holds a city to the same limit (`lib/hotel-nights.ts`).
 
+### How meals and nights out fit the budget
+
+Google's price level is relative to the place's own country, so each level is
+turned into rupees with that country's figures (`lib/spending/price-data.ts`):
+inexpensive is a meal at an inexpensive restaurant, moderate is one person's
+half of a mid-range three-course meal for two (both Numbeo), expensive is 2.5x
+moderate and very expensive 2x that (modelled). A "moderate" restaurant is
+about ₹670 a person in India and about ₹5,880 in Switzerland.
+
+The days are built only after the flights, every hotel and the transfers are
+known. What the budget leaves after them (and after misc and the buffer), per
+person per day, is the trip's spending money (`spendingMoneyPerPersonPerDayInr`):
+
+- **Meals** get the dearest tier whose three meals fit 70% of it, and each city's
+  restaurants are the best-rated ones at or below that tier. If fewer than six
+  are, the cheapest of the rest top them up, so the same three places don't
+  come round every day; the budget then shows the difference. When not even
+  the cheapest meals fit, the cheapest are still planned.
+- **Nights out** get the dearest tier that fits 20% of it, and are left out
+  when none does.
+- **Sights** dearer than the meal tier are tried last, so they're used only when
+  there aren't enough others. A sight is never dropped for its price alone.
+- With no budget to go by, meals and nights out are mid-range.
+
+### When the budget is too low for the trip
+
+`lib/services/budget-check.ts` works out the cheapest version of a trip: its
+flights, 3-star hotels, three meals a day at inexpensive local restaurants,
+transfers and local transport, plus misc and the buffer, rounded up. A plan
+that is over a budget below that floor is called unrealistic rather than just
+over budget, because no swap can close the gap. The budget tab then says so,
+with the floor and what it is made of. The wizard runs a rougher version of
+the same check (its cities from the rule-based planner, no transfers, so it
+can only understate) on the review step, and warns without blocking.
+
+The verdict and every figure are deterministic. When a budget is too low, the
+generate route also asks the AI provider, if one is configured, for a
+sentence or two saying why in words (`lib/services/budget-note.ts`). The note
+may not contain a single digit, so it cannot state a number that disagrees
+with the figures; anything else that breaks its rules, a failed call or no
+answer within 8 seconds means no note, and the trip is saved without one. The
+note is saved with the figures it was written for and shown only while they
+still hold.
+
 Provider responses are cached in-process for 10 minutes
 (`places/cache.ts`), so regenerating a similar trip doesn't re-bill the same
 searches. It's a per-process cache, cleared on restart — deliberately not a
@@ -476,7 +520,7 @@ distributed cache.
 | Rating and review count | Real, from Google (absent for many places) |
 | Website / Google Maps link | Real, from Google |
 | Photos | Real, proxied via `/api/places/photo` |
-| **Cost** | **Restaurants and sights: derived from Google's coarse `priceLevel` enum, never an exact price. Hotels: from researched averages by class (`lib/hotels/`), since Google documents `priceLevel` for food, services and shopping, not lodging.** Always flagged `(est.)` in the UI. |
+| **Cost** | **Restaurants, bars and sights: derived from Google's coarse `priceLevel` enum, priced with that country's typical restaurant prices (`lib/spending/`), never an exact price. A restaurant or bar with no level is priced as a mid-range one. Hotels: from researched averages by class (`lib/hotels/`), since Google documents `priceLevel` for food, services and shopping, not lodging.** Always flagged `(est.)` in the UI. |
 | Opening hours, availability, bookability | Not requested, not implied |
 
 Google Places is a source of *place identity and location*, not of travel
@@ -601,8 +645,9 @@ There is no demo or synthetic data anywhere in the product. What each part is:
   (`rates.test.ts` leaves each sourced city out and predicts it: 33 of 52 land
   within 30%, against 28 for using the main city as it is), and 2 use their
   region's median. Bhutan's per-night visitor fee and other
-  per-person tourist taxes are not included. Meal and activity costs come from Google's coarse price level, and a
-  flight is one flat estimate per traveller. All are labelled estimates
+  per-person tourist taxes are not included. Meal, night-out and activity costs come from Google's coarse price
+  level, priced with each country's typical restaurant prices (Numbeo figures, read in November 2026; what
+  residents pay, so tourist areas can cost more), and a flight is one flat estimate per traveller. All are labelled estimates
   (`priceIsEstimate`); they are not data.
 - **Travis** needs a real model. With no AI configured he says he is unavailable
   and points to planning by hand.
@@ -669,6 +714,10 @@ src/
     hotels/
       rate-data.ts              typical 3/4/5-star room prices by city, with sources
       rates.ts                  city → modelled → country → region fallback, India's GST, class from the budget
+    spending/
+      price-data.ts             typical meal prices by country, with sources
+      prices.ts                 Google price level → rupees per person, by country (region, world fallback)
+      tiers.ts                  how dear meals and nights out may be, from the day's spending money
     services/
       auth.ts                    the ONLY place Firebase Auth is touched (unchanged)
       trips.ts                   the ONLY place Firestore trip docs are touched
@@ -680,6 +729,7 @@ src/
         gemini-provider.ts        Gemini (generateContent), JSON output
         travis-prompt.ts          Travis's instructions + JSON schema, shared by all providers
         trip-edit-prompt.ts       the trip agent's instructions, the trip as the model sees it
+        budget-note-prompt.ts     the budget note's instructions: words only, no numbers
         index.ts                  getAIProvider() — picks a provider from env vars
       trip-agent/
         index.ts                  runTripAgent() — AI proposes, checks, one repair retry
@@ -697,6 +747,8 @@ src/
         validate.ts               TripEase's own constraint checks on an allocation
         split-days.ts             shared day-allocation maths
       budget-engine.ts           itinerary → budget breakdown, over-budget savings suggestions
+      budget-check.ts            the cheapest version of a trip; is the budget too low for it?
+      budget-note.ts             the optional model-written note for a budget that is too low
       map-points.ts              trip → map markers/filters/day route (pure, unit-tested)
       feasibility/
         geo.ts                    Haversine distance + centroid; null rather than a guess
@@ -750,6 +802,15 @@ read-modify-write instead of a fan-out across subcollections.
   than a multi-city route. That's the honest fallback, not a bug — but it
   does mean the AI planner is what makes the app genuinely multi-country.
 - Token revocation isn't detected (see "API security" above).
+- Meal prices are what residents report paying (Numbeo), so they are a floor
+  for a traveller in a tourist area. The restaurant search is not filtered by
+  price (that would cost a second search per city), so on a tight budget a city
+  whose top results are mostly dear has its meals topped up with the cheapest
+  of them, and the budget shows the difference.
+- The budget note is written once, when a trip is generated. After an edit that
+  changes the budget or the trip's minimum it is hidden, not rewritten, and
+  editing the cities doesn't write a new one; the deterministic message is
+  always shown.
 - Group size is a simple rule, not a booking: a hotel is charged for one room
   per two travellers (rounded up), meals and sights are paid per traveller,
   flights are quoted per seat, and transfers, local transport and shopping

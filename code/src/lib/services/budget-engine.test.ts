@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   activityCost,
+  budgetCovering,
   buildSavingsSuggestions,
   computeBudgetBreakdown,
+  spendableSubtotal,
   hotelCost,
   isPricedPerPerson,
   partySize,
@@ -341,5 +343,67 @@ describe("ways to save, for a group", () => {
     // 1,200 a head is under the threshold however many go, so no swap is offered.
     const trip = days(1, [activity("walk", 1_200, "INR")]);
     expect(buildSavingsSuggestions([], trip, over, 8).some((s) => s.kind === "activity-swap")).toBe(false);
+  });
+});
+
+describe("spendableSubtotal and budgetCovering", () => {
+  /** The estimate for a trip whose own costs (here, all flights) come to `subtotal`. */
+  const estimateFor = (subtotal: number, budget: number, currency: string) =>
+    computeBudgetBreakdown({ cities: [], days: [], travelers: 1, currency, userBudget: budget, flightCostTotal: subtotal }).estimatedTotal;
+
+  it("leaves out misc and the buffer: a ₹1,00,000 budget can spend about ₹91,346 on the trip itself", () => {
+    // Buffer 5% (₹5,000), then misc is 4% on top of what is spent.
+    expect(spendableSubtotal(100_000, "INR")).toBeCloseTo(95_000 / 1.04, 6);
+  });
+
+  it("uses the minimum buffer when 5% is less than it", () => {
+    expect(spendableSubtotal(20_000, "INR")).toBeCloseTo(17_000 / 1.04, 6);
+  });
+
+  it("is 0, never negative, for a budget smaller than the buffer, and for no budget", () => {
+    expect(spendableSubtotal(2_000, "INR")).toBe(0);
+    expect(spendableSubtotal(0, "INR")).toBe(0);
+    expect(spendableSubtotal(-5, "INR")).toBe(0);
+    expect(spendableSubtotal(Number.NaN, "INR")).toBe(0);
+  });
+
+  it("spending all of it keeps the estimate within the budget, in any currency", () => {
+    for (const [budget, currency] of [
+      [20_000, "INR"],
+      [100_000, "INR"],
+      [2_345_678, "INR"],
+      [1_500, "USD"],
+      [40_000, "EUR"],
+    ] as const) {
+      const subtotal = Math.floor(spendableSubtotal(budget, currency));
+      expect(estimateFor(subtotal, budget, currency), `${budget} ${currency}`).toBeLessThanOrEqual(budget + 1);
+      // And it is close to all of it: a little more would go over.
+      expect(estimateFor(subtotal + Math.max(10, budget * 0.01), budget, currency)).toBeGreaterThan(budget);
+    }
+  });
+
+  it("budgetCovering is the smallest budget that covers a subtotal", () => {
+    for (const [subtotal, currency] of [
+      [10_000, "INR"],
+      [54_000, "INR"],
+      [60_000, "INR"],
+      [91_346, "INR"],
+      [1_000_000, "INR"],
+      [800, "USD"],
+    ] as const) {
+      const budget = Math.ceil(budgetCovering(subtotal, currency));
+      expect(estimateFor(subtotal, budget, currency), `${subtotal} ${currency}`).toBeLessThanOrEqual(budget + 1);
+      // Noticeably less money is not enough.
+      const less = Math.floor(budget * 0.99) - 1;
+      expect(estimateFor(subtotal, less, currency)).toBeGreaterThan(less);
+    }
+  });
+
+  it("budgetCovering switches from the minimum buffer to 5% where they meet", () => {
+    // Below ₹60,000 of budget the buffer is the ₹3,000 minimum; above it, 5%.
+    expect(budgetCovering(50_000, "INR")).toBeCloseTo(52_000 + 3_000, 6);
+    expect(budgetCovering(100_000, "INR")).toBeCloseTo(104_000 / 0.95, 6);
+    expect(budgetCovering(0, "INR")).toBe(3_000);
+    expect(budgetCovering(-10, "INR")).toBe(3_000);
   });
 });

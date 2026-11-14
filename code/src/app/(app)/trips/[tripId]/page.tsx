@@ -15,6 +15,7 @@ import { TravisLauncher } from "@/components/trip-agent/travis-launcher";
 import { BudgetPanel } from "@/components/budget/budget-panel";
 import { TripMap } from "@/components/maps/trip-map";
 import { flightDraftFields } from "@/lib/flights/draft";
+import { checkTripBudget, currentBudgetNote } from "@/lib/services/budget-check";
 import { buildSavingsSuggestions } from "@/lib/services/budget-engine";
 import { analyzeTrip } from "@/lib/services/feasibility";
 import { subscribeToTrip, updateTripItinerary } from "@/lib/services/trips";
@@ -61,6 +62,11 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
       (err) => setLoadError(err.message),
     );
   }, [tripId]);
+
+  // Whether the budget can cover even the cheapest version of the trip, worked
+  // out afresh after every edit, and the saved note only while it still applies.
+  const budgetCheck = useMemo(() => (trip ? checkTripBudget(trip) : null), [trip]);
+  const budgetNote = trip && budgetCheck ? currentBudgetNote(trip.budgetNote, budgetCheck, trip.budget) : null;
 
   const suggestions = useMemo<SavingsSuggestion[]>(
     () => (trip ? buildSavingsSuggestions(trip.cities, trip.days, trip.budget, trip.travelers) : []),
@@ -371,6 +377,10 @@ export default function TripPage({ params }: { params: Promise<{ tripId: string 
             flights={trip.flights ?? null}
             suggestions={suggestions}
             onAskTravis={openTravis}
+            check={budgetCheck}
+            note={budgetNote}
+            travelers={trip.travelers}
+            dayCount={trip.dayCount}
           />
         </TabsContent>
       </Tabs>

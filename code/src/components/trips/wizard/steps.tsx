@@ -3,16 +3,19 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { Minus, Plus } from "lucide-react";
-import { Chip, SelectField, TextField } from "@/components/ui";
+import { AlertTriangle } from "lucide-react";
+import { Alert, Chip, SelectField, TextField } from "@/components/ui";
 import { CountryCombobox } from "@/components/ui/country-combobox";
 import { COUNTRIES } from "@/lib/countries";
 import { destinationLabel, focusAfterPick, focusProblem } from "@/lib/trip-focus";
 import { ORIGIN_AIRPORTS, indianAirport, isOriginAirport } from "@/lib/flights/airports";
 import { isDomestic } from "@/lib/flights/quote";
 import { toInr } from "@/lib/fx";
+import { checkDraftBudget } from "@/lib/services/budget-check";
 import { MAX_TRIP_DAYS, budgetProblem, dateProblems, todayInputValue } from "@/lib/trip-input-checks";
 import { cn, formatMoney } from "@/lib/utils";
 import { TRAVEL_STYLES, TRAVELER_TYPES, type TravelerType, type TravelStyle } from "@/types/itinerary";
+import type { TripDraftInput } from "@/types/trip";
 import { StepHeading } from "./wizard-shell";
 
 export interface WizardData {
@@ -56,6 +59,26 @@ const FLYING_FROM_MISSING = "Choose the city you're flying from, or untick fligh
 /** Why the budget step can't move on yet, or null when it can. */
 export function budgetStepProblem(data: WizardData): string | null {
   return budgetProblem(data.budget, data.currency) ?? (flightsReady(data) ? null : FLYING_FROM_MISSING);
+}
+
+/** What the wizard sends to be planned and built. The page and the review step both use this, so they can't disagree. */
+export function wizardDraft(data: WizardData): TripDraftInput {
+  // Only sent when the traveller chose to name a place.
+  const focus = data.focusMode === "place" ? data.focus.trim() : "";
+  const flights = flightsIncluded(data);
+  return {
+    destination: data.destination.trim(),
+    ...(focus ? { focus } : {}),
+    startDate: data.startDate,
+    endDate: data.endDate,
+    budget: Number(data.budget),
+    currency: data.currency,
+    travelers: data.travelers,
+    travelerType: data.travelerType,
+    preferences: data.preferences,
+    includeFlights: flights,
+    ...(flights && data.flyingFrom ? { origin: data.flyingFrom } : {}),
+  };
 }
 
 /** The airports a trip can start from, A to Z, as "City (CODE)". */
@@ -419,6 +442,37 @@ export function ReviewStep({ data }: { data: WizardData }) {
         />
         <Row label="Style" value={styleLabels || "No preferences selected"} />
       </div>
+      <BudgetPrecheck data={data} />
+    </div>
+  );
+}
+
+/**
+ * Before anything is built: a warning when the budget is below what even the
+ * cheapest version of this trip usually costs. It doesn't stop the traveller,
+ * since the trip is still planned as cheaply as it realistically can be.
+ */
+function BudgetPrecheck({ data }: { data: WizardData }) {
+  const draft = wizardDraft(data);
+  const check = checkDraftBudget(draft);
+  if (!check?.tooLow) return null;
+  const money = (amount: number) => formatMoney(amount, draft.currency);
+  const people = `${draft.travelers} ${draft.travelers === 1 ? "person" : "people"}`;
+  return (
+    <div className="mt-4">
+      <Alert tone="warning">
+        <div className="flex items-start gap-2" data-testid="budget-precheck">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="flex flex-col gap-1">
+            <p className="font-medium">{money(draft.budget)} looks too low for this trip.</p>
+            <p>
+              Even a basic version for {people}, with 3-star hotels, simple local meals
+              {check.minimum.parts.flights > 0 ? " and the flights" : ""}, usually costs at least {money(check.minimum.budget)}. You can
+              still generate it: TripEase will plan it as cheaply as it realistically can and show you where it goes over.
+            </p>
+          </div>
+        </div>
+      </Alert>
     </div>
   );
 }

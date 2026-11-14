@@ -1,9 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { BudgetPanel } from "@/components/budget/budget-panel";
 import { quoteFlights } from "@/lib/flights/quote";
 import { fromInr } from "@/lib/fx";
 import { buildSavingsSuggestions } from "@/lib/services/budget-engine";
+import type { TripBudgetCheck } from "@/lib/services/budget-check";
 import type { FlightQuote } from "@/types/flights";
 import { buildThailandTrip } from "@/test-support/trip-fixture";
 import type { AgentTrip } from "@/types/trip-agent";
@@ -118,5 +119,51 @@ describe("the flight quote", () => {
   it("shows nothing for a trip without a quote", () => {
     renderWith(null);
     expect(screen.queryByText(/not a live fare/)).not.toBeInTheDocument();
+  });
+});
+
+describe("a budget too low for the trip", () => {
+  const minimum = { currency: "INR", budget: 114_000, parts: { flights: 29_960, hotels: 40_110, food: 19_200, transport: 14_478 } };
+  // A function: the fixture trip is only built in beforeAll.
+  const tooLow = () => ({ ...trip.budget, currency: "INR", total: 100_000, estimatedTotal: 133_284 });
+  const renderWith = (check: TripBudgetCheck | null, note: string | null = null, budget = tooLow()) =>
+    render(<BudgetPanel budget={budget} suggestions={[]} onAskTravis={vi.fn()} check={check} note={note} travelers={4} dayCount={8} />);
+
+  it("says so, with the cheapest version's total and what it is made of", () => {
+    renderWith({ verdict: "unrealistic", minimum });
+    const notice = screen.getByTestId("budget-too-low");
+    expect(notice).toHaveTextContent("This budget is too low for a trip like this.");
+    expect(notice).toHaveTextContent("for 4 people over 8 days, comes to at least ₹1,14,000");
+    expect(notice).toHaveTextContent("flights ₹29,960, 3-star hotels ₹40,110, simple local meals ₹19,200, getting around ₹14,478");
+    expect(notice).toHaveTextContent("₹33,284 over your ₹1,00,000");
+    // Instead of, not as well as, the ordinary over-budget line.
+    expect(screen.queryByText(/See ways to save below/)).not.toBeInTheDocument();
+  });
+
+  it("leaves flights out of the list when they aren't in the budget", () => {
+    renderWith({ verdict: "unrealistic", minimum: { ...minimum, parts: { ...minimum.parts, flights: 0 } } });
+    expect(screen.getByTestId("budget-too-low")).not.toHaveTextContent("flights");
+  });
+
+  it("adds the written note when there is one", () => {
+    renderWith({ verdict: "unrealistic", minimum }, "Hotels for four people take most of this budget.");
+    expect(screen.getByText("Hotels for four people take most of this budget.")).toBeInTheDocument();
+  });
+
+  it("speaks of one person and one day correctly", () => {
+    render(<BudgetPanel budget={tooLow()} suggestions={[]} onAskTravis={vi.fn()} check={{ verdict: "unrealistic", minimum }} travelers={1} dayCount={1} />);
+    expect(screen.getByTestId("budget-too-low")).toHaveTextContent("for 1 person over 1 day");
+  });
+
+  it("keeps the ordinary messages when the budget could cover the trip", () => {
+    renderWith({ verdict: "over", minimum });
+    expect(screen.queryByTestId("budget-too-low")).not.toBeInTheDocument();
+    expect(screen.getByText(/See ways to save below/)).toBeInTheDocument();
+    cleanup();
+    renderWith({ verdict: "fits", minimum }, null, { ...tooLow(), estimatedTotal: 90_000 });
+    expect(screen.getByText("Your trip fits comfortably within budget.")).toBeInTheDocument();
+    cleanup();
+    renderWith(null);
+    expect(screen.queryByTestId("budget-too-low")).not.toBeInTheDocument();
   });
 });

@@ -9,7 +9,17 @@ import { PlaceNotFoundError } from "@/lib/services/places/errors";
 import { nightsInCity } from "@/lib/hotel-nights";
 import { pickHotel, rankByQuality, withoutDuplicates } from "@/lib/services/places/ranking";
 import type { PlaceSearchParams, PlacesProvider } from "@/lib/services/places/provider";
-import { computeBudgetBreakdown, roomsFor } from "@/lib/services/budget-engine";
+import {
+  activityCost,
+  computeBudgetBreakdown,
+  DAILY_TRANSPORT_INR,
+  hotelCost,
+  partySize,
+  roomsFor,
+  spendableSubtotal,
+} from "@/lib/services/budget-engine";
+import { spendPricesFor, type SpendPrices } from "@/lib/spending/prices";
+import { chooseSpending, type SpendingPlan } from "@/lib/spending/tiers";
 import {
   AVAILABLE_MINUTES,
   centroid,
@@ -21,6 +31,7 @@ import {
   projectDayMinutes,
   settleTimes,
   sortByTime,
+  type TravelEstimate,
 } from "@/lib/services/feasibility";
 import type { Activity, City, Hotel, TripDay } from "@/types/itinerary";
 import type { LatLng, Place } from "@/types/place";
@@ -125,12 +136,20 @@ export function placeToHotel(place: Place, nights: number, currency: string, rat
   };
 }
 
-interface CityPlaces {
+/** A city's places as the provider returned them, each list best first. */
+export interface CityPlaces {
   hotel: Place;
   attractions: Place[];
+  restaurants: Place[];
+  nightlife: Place[];
+}
+
+/** What a city's days are built from, once the trip's spending level is known. */
+interface DayPools {
+  attractions: Place[];
+  breakfast: Place[];
   lunch: Place[];
   dinner: Place[];
-  breakfast: Place[];
   nightlife: Place[];
 }
 
@@ -169,15 +188,70 @@ async function fetchCityPlaces(
     throw new PlaceNotFoundError(cityName, "sights");
   }
 
-  // Best first, so the days are built from the best places and the three meal
-  // pools (dealt out below) are each of similar quality.
-  const meals = partitionRestaurants(rankByQuality(withoutDuplicates(restaurants)));
-
+  // Best first, so the days are built from the best places the trip can afford.
   return {
     hotel,
     attractions: rankByQuality(withoutDuplicates(attractions), preferences),
-    ...meals,
+    restaurants: rankByQuality(withoutDuplicates(restaurants)),
     nightlife: rankByQuality(withoutDuplicates(nightlife)),
+  };
+}
+
+/**
+ * Fewest restaurants a city's meals are chosen from: two for each meal of the
+ * day, so the same three places don't come round every day. Topping up costs
+ * more than the spending level allows, which the budget then shows; it costs
+ * no extra places search.
+ */
+export const MIN_MEAL_CHOICES = 6;
+
+/** What one person pays at a place, in the trip's currency. A place with no price can't be judged, so it counts as within any limit. */
+const personCost = (place: Place) => place.price?.amount ?? 0;
+
+/**
+ * The restaurants a trip's spending level allows, best first (`ranked` is
+ * already best first). When fewer than `MIN_MEAL_CHOICES` are within the
+ * limit, the cheapest of the others top them up, so the traveller still gets
+ * meals: the budget then shows as tight rather than the day going hungry.
+ */
+export function affordableRestaurants(ranked: Place[], limit: number): Place[] {
+  const within = ranked.filter((place) => personCost(place) <= limit);
+  if (within.length >= MIN_MEAL_CHOICES) return within;
+  // Cheapest first; among equally cheap, the better one (sort is stable).
+  const cheapestOthers = ranked
+    .filter((place) => personCost(place) > limit)
+    .sort((a, b) => personCost(a) - personCost(b));
+  return [...within, ...cheapestOthers.slice(0, MIN_MEAL_CHOICES - within.length)];
+}
+
+/**
+ * Nights out the spending level allows, best first. A night out is optional,
+ * so one over the limit is left out rather than used to fill a gap, and with
+ * no room in the budget for one (`limit` null) there are none.
+ */
+export function affordableNightlife(ranked: Place[], limit: number | null): Place[] {
+  if (limit === null) return [];
+  return ranked.filter((place) => personCost(place) <= limit);
+}
+
+/**
+ * Sights in the order they're chosen: those within the spending level first
+ * (best first), then the dearer ones (best first). Sights are the reason for
+ * the trip, so a dear one isn't dropped, only passed over while there are
+ * enough others for the days.
+ */
+export function sightsWithinSpending(ranked: Place[], limit: number): Place[] {
+  return [...ranked.filter((place) => personCost(place) <= limit), ...ranked.filter((place) => personCost(place) > limit)];
+}
+
+/** One city's pools for its days, from its places and the trip's spending plan. */
+function dayPoolsFor(places: CityPlaces, spending: SpendingPlan, prices: SpendPrices, currency: string): DayPools {
+  const limit = (inr: number) => fromInr(inr, currency);
+  const foodLimit = limit(prices.perPersonInr[spending.food]);
+  return {
+    attractions: sightsWithinSpending(places.attractions, foodLimit),
+    ...partitionRestaurants(affordableRestaurants(places.restaurants, foodLimit)),
+    nightlife: affordableNightlife(places.nightlife, spending.nightlife ? limit(prices.perPersonInr[spending.nightlife]) : null),
   };
 }
 
@@ -295,11 +369,10 @@ function clashesWithDay(candidate: Activity, scheduled: Activity[]): boolean {
 
 function buildDaysForCity(
   city: City,
-  places: CityPlaces,
+  pools: DayPools,
   dayNumberOffset: number,
-  isFirstCity: boolean,
-  /** The previous city's anchor, for sizing the transfer that opens this city. */
-  transferFrom: LatLng | null,
+  /** The transfer that opens this city, already sized; null for the city the trip starts in. */
+  transfer: TravelEstimate | null,
   travelers: number,
 ): TripDay[] {
   const days: TripDay[] = [];
@@ -312,12 +385,14 @@ function buildDaysForCity(
   // given just the best ones the trip has room for (already ranked, best first).
   // Otherwise a mediocre place at the edge of town could take a day's slot from a
   // far better one.
-  const attractionsByDay = clusterByDay(places.attractions.slice(0, city.dayCount * ATTRACTIONS_PER_DAY), city.dayCount, ATTRACTIONS_PER_DAY);
+  const attractionsByDay = clusterByDay(pools.attractions.slice(0, city.dayCount * ATTRACTIONS_PER_DAY), city.dayCount, ATTRACTIONS_PER_DAY);
 
   for (let i = 0; i < city.dayCount; i++) {
     const date = addDaysIso(city.startDate, i);
     const activities: Activity[] = [];
-    const isTransferDay = i === 0 && !isFirstCity;
+    // The city's first day opens with the journey into it, if there is one.
+    const arrival = i === 0 ? transfer : null;
+    const isTransferDay = arrival !== null;
     // Within the day, visit the closer stop first so the route doesn't
     // double back on itself.
     const dayAttractions = nearestNeighbourOrder(attractionsByDay[i] ?? [], city.hotel.location ?? null);
@@ -325,8 +400,8 @@ function buildDaysForCity(
     // Travel the day already owes before a single stop is scheduled.
     let committedTravelMinutes = 0;
 
-    if (isTransferDay) {
-      const estimate = travelProvider.estimate(transferFrom, cityAnchorOf(city, places), { sameCity: false });
+    if (arrival) {
+      const estimate = arrival;
       committedTravelMinutes = estimate.minutes;
       activities.push({
         id: makeId("act"),
@@ -426,8 +501,8 @@ function buildDaysForCity(
         reserve: DINNER_RESERVE,
         latestEnd: DINNER_TIME,
       });
-      addFitting(places.lunch, i, LUNCH_SLOTS, { duration: LUNCH_MINUTES, reserve: DINNER_RESERVE });
-      addFitting(places.dinner, i, [DINNER_TIME], { duration: DINNER_MINUTES });
+      addFitting(pools.lunch, i, LUNCH_SLOTS, { duration: LUNCH_MINUTES, reserve: DINNER_RESERVE });
+      addFitting(pools.dinner, i, [DINNER_TIME], { duration: DINNER_MINUTES });
     } else {
       addFitting(dayAttractions, 0, ["10:00"], {
         allowReuse: false,
@@ -439,10 +514,10 @@ function buildDaysForCity(
         reserve: DINNER_RESERVE,
         latestEnd: DINNER_TIME,
       });
-      addFitting(places.breakfast, i, ["09:00"], { duration: BREAKFAST_MINUTES, reserve: DINNER_RESERVE });
-      addFitting(places.lunch, i, LUNCH_SLOTS, { duration: LUNCH_MINUTES, reserve: DINNER_RESERVE });
-      addFitting(places.dinner, i, [DINNER_TIME], { duration: DINNER_MINUTES });
-      addFitting(places.nightlife, i, ["18:00"], { latestEnd: DINNER_TIME });
+      addFitting(pools.breakfast, i, ["09:00"], { duration: BREAKFAST_MINUTES, reserve: DINNER_RESERVE });
+      addFitting(pools.lunch, i, LUNCH_SLOTS, { duration: LUNCH_MINUTES, reserve: DINNER_RESERVE });
+      addFitting(pools.dinner, i, [DINNER_TIME], { duration: DINNER_MINUTES });
+      addFitting(pools.nightlife, i, ["18:00"], { latestEnd: DINNER_TIME });
     }
 
     days.push({
@@ -459,6 +534,63 @@ function buildDaysForCity(
   }
 
   return days;
+}
+
+/** One city of the trip on its way to being built. */
+export interface PlannedStop {
+  city: City;
+  /** Null when every day of the city is kept from the existing trip. */
+  places: CityPlaces | null;
+  /** The city's days in the existing trip, when it was already there. */
+  previousDays: TripDay[];
+  /** How many of those are kept as they are. */
+  reusableDays: number;
+  /** The journey into this city from the one before; null for the first city or one with no fresh places. */
+  transfer: TravelEstimate | null;
+}
+
+/**
+ * What the budget leaves per person per day, in rupees, for the days still to
+ * be built, once everything already known is paid for: the flights, every
+ * hotel, the transfers into new cities, the daily local transport, and
+ * whatever the days kept from an existing trip already cost. Misc and the
+ * buffer are taken off first (`spendableSubtotal`), so spending all of it
+ * still keeps the estimate within the budget.
+ *
+ * Null when there is no budget to go by, or no day left to build. Can be 0 or
+ * less: the budget is already spent, and the cheapest meals are chosen.
+ */
+export function spendingMoneyPerPersonPerDayInr(
+  input: Pick<TripDraftInput, "budget" | "currency" | "travelers">,
+  stops: PlannedStop[],
+  dayCount: number,
+  /** In the trip's currency. */
+  flightCostTotal: number,
+): number | null {
+  if (!(input.budget > 0)) return null;
+  // A city with no fresh places keeps all its days, so it adds none here.
+  const freshDays = stops.reduce((sum, stop) => sum + stop.city.dayCount - stop.reusableDays, 0);
+  if (freshDays <= 0) return null;
+
+  const inTripCurrency =
+    flightCostTotal +
+    stops.reduce((sum, { city }) => sum + hotelCost(city.hotel, input.travelers), 0) +
+    stops
+      .flatMap((stop) => stop.previousDays.slice(0, stop.reusableDays))
+      .flatMap((day) => day.activities)
+      .reduce((sum, activity) => sum + activityCost(activity, input.travelers), 0);
+  // A transfer is built only when its city's first day is fresh.
+  const transfersInr = stops.reduce(
+    (sum, stop) =>
+      sum + (stop.transfer && stop.reusableDays === 0 ? estimateTransferCostInr(stop.transfer.mode, stop.transfer.distanceKm, input.travelers) : 0),
+    0,
+  );
+  const leftInr =
+    toInr(spendableSubtotal(input.budget, input.currency), input.currency) -
+    toInr(inTripCurrency, input.currency) -
+    transfersInr -
+    DAILY_TRANSPORT_INR * dayCount;
+  return leftInr / (partySize(input.travelers) * freshDays);
 }
 
 /** Match a planned city to one already in the trip, by name. Renaming a city
@@ -510,13 +642,17 @@ export async function generateItinerary(
       : null;
 
   const cities: City[] = [];
-  const days: TripDay[] = [];
+  const stops: PlannedStop[] = [];
+  const travelProvider = getTravelTimeProvider();
   let cursorDate = input.startDate;
-  let dayOffset = 0;
   // Carries the previous city's position forward so each transfer can be sized
   // against the actual distance travelled.
   let previousAnchor: LatLng | null = null;
 
+  // First every city's hotel and places, and the transfer into it. The days
+  // are built only once all of these are known, because what the meals and
+  // nights out may cost depends on what the flights, hotels and transfers
+  // leave of the budget.
   for (let i = 0; i < plan.cities.length; i++) {
     const allocation = plan.cities[i];
     const count = allocation.days;
@@ -554,26 +690,13 @@ export async function generateItinerary(
     };
     cities.push(city);
 
-    const freshDays = places
-      ? buildDaysForCity(city, places, dayOffset, i === 0, previousAnchor, input.travelers)
-      : [];
+    // Every city but the first opens with the journey from the one before.
+    const transfer =
+      places && i > 0 ? travelProvider.estimate(previousAnchor, cityAnchorOf(city, places), { sameCity: false }) : null;
     if (places) previousAnchor = cityAnchorOf(city, places);
-    for (let dayIndex = 0; dayIndex < count; dayIndex++) {
-      const kept = dayIndex < reusableDays ? previousDays[dayIndex] : null;
-      const source = kept ?? freshDays[dayIndex];
-      if (!source) continue;
-      days.push({
-        ...source,
-        // Dates and numbering always come from the new allocation; only the
-        // activities are carried over.
-        cityId: city.id,
-        dayNumber: dayOffset + dayIndex + 1,
-        date: addDaysIso(cursorDate, dayIndex),
-      });
-    }
 
+    stops.push({ city, places, previousDays, reusableDays, transfer });
     cursorDate = addDaysIso(cursorDate, count);
-    dayOffset += count;
   }
 
   // There is no free source of live fares, so the flight is a quote from
@@ -594,6 +717,33 @@ export async function generateItinerary(
           now: input.quotedOn ? new Date(`${input.quotedOn}T12:00:00Z`) : undefined,
         });
   const flightCostTotal = flights ? fromInr(flights.totalInr, input.currency) : 0;
+
+  // How dear the meals and nights out may be, from what the rest of the trip
+  // leaves of the budget, priced with the destination's own figures.
+  const prices = spendPricesFor(resolveCountry(input.destination)?.code ?? null);
+  const spending = chooseSpending(spendingMoneyPerPersonPerDayInr(input, stops, dayCount, flightCostTotal), prices);
+
+  const days: TripDay[] = [];
+  let dayOffset = 0;
+  for (const { city, places, previousDays, reusableDays, transfer } of stops) {
+    const freshDays = places
+      ? buildDaysForCity(city, dayPoolsFor(places, spending, prices, input.currency), dayOffset, transfer, input.travelers)
+      : [];
+    for (let dayIndex = 0; dayIndex < city.dayCount; dayIndex++) {
+      const kept = dayIndex < reusableDays ? previousDays[dayIndex] : null;
+      const source = kept ?? freshDays[dayIndex];
+      if (!source) continue;
+      days.push({
+        ...source,
+        // Dates and numbering always come from the new allocation; only the
+        // activities are carried over.
+        cityId: city.id,
+        dayNumber: dayOffset + dayIndex + 1,
+        date: addDaysIso(city.startDate, dayIndex),
+      });
+    }
+    dayOffset += city.dayCount;
+  }
 
   const budget = computeBudgetBreakdown({
     cities,

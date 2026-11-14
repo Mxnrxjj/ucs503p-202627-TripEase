@@ -1,5 +1,7 @@
+import { resolveCountry } from "@/lib/countries";
 import { fromInr } from "@/lib/fx";
 import { signPhotoName } from "@/lib/server/photo-signing";
+import { priceLevelInr, spendPricesFor } from "@/lib/spending/prices";
 import {
   googlePlaceDetailsSchema,
   googleTextSearchResponseSchema,
@@ -25,9 +27,10 @@ import type { PlaceSearchParams, PlacesProvider } from "./provider";
  * - Identity, coordinates, address, rating, review count, website: real, used as-is.
  * - Price: only a coarse `priceLevel` enum, never an amount, and Google
  *   documents it for food, services and shopping, not for lodging. A
- *   restaurant's or a sight's cost is derived from that enum and always
- *   flagged `price.isEstimate = true`; a hotel's comes from researched
- *   averages instead (`@/lib/hotels/rates`). Never presented as a Google price.
+ *   restaurant's or a sight's cost is derived from that enum with its own
+ *   country's typical prices (`@/lib/spending/prices`) and always flagged
+ *   `price.isEstimate = true`; a hotel's comes from researched averages instead
+ *   (`@/lib/hotels/rates`). Never presented as a Google price.
  * - Opening hours, live availability, bookability: not requested, not implied.
  */
 
@@ -53,14 +56,6 @@ const SEARCH_FIELDS = [
 
 /** Same fields for a single-place lookup (no `places.` prefix on the details endpoint). */
 const DETAILS_FIELDS = SEARCH_FIELDS.replaceAll("places.", "");
-
-const PRICE_LEVEL_TO_INR: Record<string, number> = {
-  PRICE_LEVEL_FREE: 0,
-  PRICE_LEVEL_INEXPENSIVE: 500,
-  PRICE_LEVEL_MODERATE: 1_500,
-  PRICE_LEVEL_EXPENSIVE: 3_500,
-  PRICE_LEVEL_VERY_EXPENSIVE: 7_000,
-};
 
 const CATEGORY_RULES: { types: string[]; category: ActivityCategory; styles: TravelStyle[] }[] = [
   { types: ["beach"], category: "beach", styles: ["beaches"] },
@@ -119,12 +114,25 @@ function inferRating(raw: GoogleRawPlace): Rating | null {
   return { value: raw.rating, count: raw.userRatingCount ?? null };
 }
 
+/**
+ * One person's cost at a place, in `currency`, from its Google price level and
+ * the typical prices of its country. A restaurant or a bar Google gives no
+ * level for is priced as a mid-range one: a meal or a night out is never free,
+ * and counting it as free would make the cheapest-looking places the unknown
+ * ones. Anything else without a level has no price (a sight usually has none).
+ */
 function inferPrice(
   raw: GoogleRawPlace,
   currency: string,
+  countryCode: string | null,
+  category: ActivityCategory,
 ): { amount: number; currency: string; isEstimate: true } | null {
-  if (!raw.priceLevel || !(raw.priceLevel in PRICE_LEVEL_TO_INR)) return null;
-  return { amount: fromInr(PRICE_LEVEL_TO_INR[raw.priceLevel], currency), currency, isEstimate: true };
+  const levelInr = priceLevelInr(raw.priceLevel, countryCode);
+  if (levelInr !== null) return { amount: fromInr(levelInr, currency), currency, isEstimate: true };
+  if (category === "food" || category === "nightlife") {
+    return { amount: fromInr(spendPricesFor(countryCode).perPersonInr.mid, currency), currency, isEstimate: true };
+  }
+  return null;
 }
 
 /** Pull city/country out of Google's address components. Null when absent — never guessed. */
@@ -209,7 +217,7 @@ export class GooglePlacesProvider implements PlacesProvider {
 
       return (parsed.data.places ?? [])
         .filter((raw) => Boolean(raw.displayName?.text))
-        .map((raw) => this.mapPlace(raw, params.type, currency, params.mealType))
+        .map((raw) => this.mapPlace(raw, params.type, currency, params.mealType, params.country))
         .slice(0, limit);
     });
   }
@@ -288,9 +296,14 @@ export class GooglePlacesProvider implements PlacesProvider {
     type: PlaceType,
     currency: string,
     mealType: PlaceSearchParams["mealType"],
+    /** The country the search was for, used to price a place whose address doesn't say. */
+    searchCountry?: string,
   ): Place {
     const { category, styleTags } = inferCategoryAndStyles(raw.types, type);
     const { city, country, countryCode } = inferPlaceArea(raw);
+    // A place is priced with its own country's figures; one Google gives no
+    // country for, with those of the country searched in.
+    const pricingCountry = countryCode ?? (searchCountry ? (resolveCountry(searchCountry)?.code ?? null) : null);
     const providerPlaceId = raw.id ?? null;
 
     return {
@@ -309,7 +322,7 @@ export class GooglePlacesProvider implements PlacesProvider {
       rating: inferRating(raw),
       // A price level is a restaurant's or a shop's, not a nightly room rate, so
       // a hotel gets none here: its price comes from `@/lib/hotels/rates`.
-      price: type === "hotel" ? null : inferPrice(raw, currency),
+      price: type === "hotel" ? null : inferPrice(raw, currency, pricingCountry, category),
       durationMinutes: null,
       mealTypes: type === "restaurant" && mealType ? [mealType] : null,
       source: {

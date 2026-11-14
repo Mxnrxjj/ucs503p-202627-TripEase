@@ -14,8 +14,8 @@ import {
   StyleStep,
   TravelersStep,
   budgetStepProblem,
-  flightsIncluded,
   focusStepProblem,
+  wizardDraft,
   type WizardData,
 } from "@/components/trips/wizard/steps";
 import { buildInitialWizardData, startingStep } from "@/components/trips/wizard/initial-data";
@@ -88,21 +88,7 @@ export default function NewTripPage() {
     setStage("planning");
     setPhase("generating");
 
-    // Only sent when the traveller chose to name a place.
-    const focus = data.focusMode === "place" ? data.focus.trim() : "";
-    const draft: TripDraftInput = {
-      destination: data.destination.trim(),
-      ...(focus ? { focus } : {}),
-      startDate: data.startDate,
-      endDate: data.endDate,
-      budget: Number(data.budget),
-      currency: data.currency,
-      travelers: data.travelers,
-      travelerType: data.travelerType,
-      preferences: data.preferences,
-      includeFlights: flightsIncluded(data),
-      ...(flightsIncluded(data) && data.flyingFrom ? { origin: data.flyingFrom } : {}),
-    };
+    const draft: TripDraftInput = wizardDraft(data);
 
     try {
       if (!user) throw new Error("Not signed in.");

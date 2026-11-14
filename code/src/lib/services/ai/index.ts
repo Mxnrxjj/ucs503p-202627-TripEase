@@ -2,7 +2,7 @@ import { GeminiAIProvider } from "./gemini-provider";
 import { GroqAIProvider } from "./groq-provider";
 import type { AIProvider } from "./provider";
 
-export type { AIProvider, AIProviderName, AIFailureCode, TravisRequest, TripEditRequest } from "./provider";
+export type { AIProvider, AIProviderName, AIFailureCode, BudgetNoteRequest, TravisRequest, TripEditRequest } from "./provider";
 export { AIProviderError } from "./provider";
 export { GroqAIProvider } from "./groq-provider";
 export { GeminiAIProvider } from "./gemini-provider";

@@ -51,3 +51,17 @@ export interface SavingsSuggestion {
    */
   askTravis: string;
 }
+
+/**
+ * A model's short explanation of why a budget is too low for its trip, saved
+ * with the figures it was written for. It is shown only while those still
+ * hold: after an edit that changes the minimum or the budget, it is stale and
+ * is not shown. It never contains a number; the figures shown beside it come
+ * from the budget check.
+ */
+export interface BudgetNote {
+  text: string;
+  minimumBudget: number;
+  budget: number;
+  currency: string;
+}

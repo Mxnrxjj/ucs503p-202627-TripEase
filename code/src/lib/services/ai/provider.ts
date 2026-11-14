@@ -3,6 +3,7 @@ import type { LlmCityPlan } from "@/lib/validation/planning";
 import type { TravisMessageInput } from "@/types/travis";
 import type { LlmTravisTurn } from "@/lib/validation/travis";
 import type { LlmTripEdit } from "@/lib/validation/trip-agent";
+import type { LlmBudgetNote } from "@/lib/validation/budget-note";
 import type { AgentTrip, CityTopPlaces, TripAgentFocus, TripAgentMessageInput } from "@/types/trip-agent";
 
 /**
@@ -60,6 +61,21 @@ export interface TravisRequest {
   today: string;
 }
 
+/** What the budget note is written from. Every figure comes from `@/lib/services/budget-check`. */
+export interface BudgetNoteRequest {
+  destination: string;
+  focus: string | null;
+  cities: string[];
+  dayCount: number;
+  travelers: number;
+  flightsIncluded: boolean;
+  currency: string;
+  budget: number;
+  minimumBudget: number;
+  /** The cheapest version's main costs, in `currency`. */
+  parts: { flights: number; hotels: number; food: number; transport: number };
+}
+
 export interface AIProvider {
   readonly name: AIProviderName;
   /** Identifier of the model actually used, for reporting and logs. */
@@ -88,6 +104,14 @@ export interface AIProvider {
    * finds the real places, and the traveller confirms before anything is saved.
    */
   proposeTripEdit(request: TripEditRequest, repairNote?: string): Promise<LlmTripEdit>;
+
+  /**
+   * A short note on why a budget is too low for its trip, already parsed
+   * through `llmBudgetNoteSchema` (which refuses any number). Optional: a
+   * provider without it simply writes no note, and the traveller still sees
+   * the budget check's own figures and words.
+   */
+  explainBudget?(request: BudgetNoteRequest): Promise<LlmBudgetNote>;
 }
 
 /**

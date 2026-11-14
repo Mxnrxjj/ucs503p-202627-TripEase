@@ -18,6 +18,7 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { COLLECTIONS } from "@/lib/collections";
+import { budgetNoteSchema } from "@/lib/validation/budget-note";
 import type { BudgetBreakdown } from "@/types/budget";
 import type { City, TripDay } from "@/types/itinerary";
 import type { CityPlan } from "@/types/planning";
@@ -63,6 +64,8 @@ const tripConverter: FirestoreDataConverter<Trip> = {
       planning: (data.planning ?? null) as CityPlan | null,
       // Left undefined for trips saved before quotes existed, so they can be told apart.
       flights: data.flights === undefined ? undefined : ((data.flights ?? null) as FlightQuote | null),
+      // Shown to the traveller, so only a note of the right shape is read back.
+      budgetNote: budgetNoteSchema.safeParse(data.budgetNote).data ?? null,
       createdAt: tsToDate(data.createdAt),
       updatedAt: tsToDate(data.updatedAt),
     };
@@ -107,6 +110,10 @@ export async function saveGeneratedTrip(
     // Only the structured decision — never prompts or raw model output.
     planning: planning ?? null,
     flights: itinerary.flights ?? null,
+    // A model's note on a budget that is too low: already checked (no numbers
+    // in it) and saved with the figures it describes, so it can be hidden once
+    // they change.
+    budgetNote: itinerary.budgetNote ?? null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
